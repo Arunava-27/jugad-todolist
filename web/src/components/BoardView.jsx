@@ -1,0 +1,58 @@
+import { useState } from 'react';
+import { STATUSES, PRIORITY_COLORS, formatDueDate } from '../lib/format.js';
+
+export default function BoardView({ tasks, loading, onUpdateTask, onOpenTask }) {
+  const [dragOverStatus, setDragOverStatus] = useState(null);
+
+  if (loading) return <div className="empty-state">Loading tasks…</div>;
+
+  const columns = STATUSES.map((status) => ({
+    status,
+    tasks: tasks.filter((t) => t.status === status),
+  })).filter((c) => c.tasks.length > 0 || ['Not started', 'In progress', 'Done'].includes(c.status));
+
+  function handleDrop(e, status) {
+    e.preventDefault();
+    setDragOverStatus(null);
+    const taskId = Number(e.dataTransfer.getData('text/task-id'));
+    if (!taskId) return;
+    onUpdateTask(taskId, { status, is_completed: status === 'Done' });
+  }
+
+  return (
+    <div className="board-view">
+      {columns.map((col) => (
+        <div
+          key={col.status}
+          className={`board-column ${dragOverStatus === col.status ? 'drag-over' : ''}`}
+          onDragOver={(e) => { e.preventDefault(); setDragOverStatus(col.status); }}
+          onDragLeave={() => setDragOverStatus(null)}
+          onDrop={(e) => handleDrop(e, col.status)}
+        >
+          <div className="board-column-title">{col.status} <span className="nav-count">{col.tasks.length}</span></div>
+          <div className="board-column-body">
+            {col.tasks.map((task) => (
+              <div
+                key={task.id}
+                className="board-card"
+                draggable
+                onDragStart={(e) => e.dataTransfer.setData('text/task-id', String(task.id))}
+                onClick={() => onOpenTask(task)}
+              >
+                <div className="board-card-title">{task.title}</div>
+                <div className="task-meta">
+                  {task.priority && (
+                    <span className="chip" style={{ background: PRIORITY_COLORS[task.priority] + '22', color: PRIORITY_COLORS[task.priority] }}>
+                      {task.priority.replace(/^[^\s]+\s/, '')}
+                    </span>
+                  )}
+                  {task.due_date && <span className="chip due-chip">{formatDueDate(task.due_date)}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
