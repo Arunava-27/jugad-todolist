@@ -6,8 +6,10 @@ databases.
 
 - **Backend:** Node.js + Express + SQLite (`better-sqlite3`) — `server/`
 - **Frontend:** React + Vite SPA — `web/`
-- **Data:** single SQLite file at `data/app.db`
+- **Data:** single SQLite file at `data/app.db`, uploaded task images at `data/uploads/`
 - **Auth:** one hardcoded admin user (env vars), session cookie
+- **Customization:** Settings screen — theme/accent color, editable statuses & priorities
+  (drag to reorder, recolor, mark done/default), labels, people, and projects, all with colors
 - **Hosting:** Docker Compose (`app` + Caddy for automatic HTTPS) — see [DEPLOY.md](DEPLOY.md)
 
 ## Local development

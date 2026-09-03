@@ -1,5 +1,9 @@
 import { Router } from 'express';
-import db from '../db/index.js';
+import path from 'node:path';
+import fs from 'node:fs';
+import db, { DATA_DIR } from '../db/index.js';
+
+const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 
 const router = Router();
 
@@ -48,7 +52,10 @@ function hydrateTask(task) {
   const assignees = db.prepare(
     `SELECT a.name, a.color FROM assignees a JOIN task_assignees ta ON ta.assignee_id = a.id WHERE ta.task_id = ? ORDER BY a.name`
   ).all(task.id);
-  return { ...task, is_completed: !!task.is_completed, labels, assignees };
+  const attachments = db.prepare(
+    `SELECT id, original_name, mime_type, size, created_at FROM attachments WHERE task_id = ? ORDER BY created_at`
+  ).all(task.id).map((a) => ({ ...a, url: `/api/attachments/${a.id}/file` }));
+  return { ...task, is_completed: !!task.is_completed, labels, assignees, attachments };
 }
 
 function defaultStatusName() {
@@ -199,7 +206,10 @@ router.delete('/:id', (req, res) => {
   const id = Number(req.params.id);
   const existing = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id);
   if (!existing) return res.status(404).json({ error: 'Task not found' });
+  // Attachment rows cascade via FK, but the files on disk don't — clean those up first.
+  const files = db.prepare('SELECT filename FROM attachments WHERE task_id = ?').all(id);
   db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
+  for (const f of files) fs.unlink(path.join(UPLOAD_DIR, f.filename), () => {});
   res.json({ ok: true });
 });
 

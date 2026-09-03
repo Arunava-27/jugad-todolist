@@ -1,6 +1,36 @@
 import { useState } from 'react';
+import { api } from '../lib/api.js';
 
 export default function TaskModal({ task, projects, statuses, priorities, onClose, onUpdate, onDelete }) {
+  const [attachments, setAttachments] = useState(task.attachments || []);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+
+  async function handleFileChange(e) {
+    const file = e.target.files[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if (!file) return;
+    setUploading(true);
+    setUploadError('');
+    try {
+      const uploaded = await api.uploadAttachment(task.id, file);
+      setAttachments((prev) => [...prev, uploaded]);
+    } catch (err) {
+      setUploadError(err.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function removeAttachment(id) {
+    setAttachments((prev) => prev.filter((a) => a.id !== id)); // optimistic
+    try {
+      await api.deleteAttachment(id);
+    } catch {
+      setAttachments(task.attachments || []); // revert on failure
+    }
+  }
+
   const [form, setForm] = useState({
     title: task.title || '',
     description: task.description || '',
@@ -124,6 +154,28 @@ export default function TaskModal({ task, projects, statuses, priorities, onClos
             Assignees (comma separated)
             <input value={form.assignees} onChange={(e) => set('assignees', e.target.value)} placeholder="Arunava, Soumi" />
           </label>
+        </div>
+
+        <div className="attachments-section">
+          <div className="settings-hint" style={{ marginBottom: 8 }}>Images</div>
+          {uploadError && <div className="login-error" style={{ marginBottom: 8 }}>{uploadError}</div>}
+          <div className="attachment-grid">
+            {attachments.map((a) => (
+              <div className="attachment-thumb" key={a.id}>
+                <img src={a.url} alt={a.original_name} />
+                <button
+                  type="button"
+                  className="attachment-remove"
+                  onClick={() => removeAttachment(a.id)}
+                  title={`Remove ${a.original_name}`}
+                >✕</button>
+              </div>
+            ))}
+            <label className="attachment-add">
+              {uploading ? '…' : '+'}
+              <input type="file" accept="image/*" hidden onChange={handleFileChange} disabled={uploading} />
+            </label>
+          </div>
         </div>
 
         <div className="modal-footer">

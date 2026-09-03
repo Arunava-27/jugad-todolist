@@ -86,10 +86,12 @@ docker compose up -d --build
 
 ## Backups
 
-The SQLite file lives in the `app-data` Docker volume at `/data/app.db`. To copy it to your own machine:
+The SQLite file and uploaded task images both live in the `app-data` Docker volume, at `/data/app.db`
+and `/data/uploads/`. To copy them to your own machine:
 
 ```bash
 docker compose cp app:/data/app.db ./app-backup-$(date +%F).db
+docker compose cp app:/data/uploads ./uploads-backup-$(date +%F)
 ```
 
 Run that from your laptop over SSH (or set up a cron job on the droplet) as often as you like — there's

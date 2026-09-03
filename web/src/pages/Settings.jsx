@@ -72,13 +72,15 @@ export default function Settings({ statuses, priorities, labels, assignees, proj
           {tab === 'Workflow' && (
             <>
               <h3>Statuses</h3>
-              <p className="settings-hint">These become your board columns. The check marks which status counts as "done" and which is the default for new tasks.</p>
+              <p className="settings-hint">These become your board columns, in this order. Drag the handle to reorder. The check marks which status counts as "done" and which is the default for new tasks.</p>
               <SettingsList
                 items={statuses}
+                reorderable
                 addPlaceholder="New status name"
                 onCreate={(data) => api.createStatus(data).then(onChange)}
                 onUpdate={(id, patch) => api.updateStatus(id, patch).then(onChange)}
                 onDelete={(id, reassignTo) => api.deleteStatus(id, reassignTo).then(onChange)}
+                onReorder={(ordered) => Promise.all(ordered.map((item, idx) => api.updateStatus(item.id, { sort_order: idx }))).then(onChange)}
                 renderRowExtra={(item, patch) => (
                   <>
                     <label title="Counts as completed">
@@ -92,13 +94,15 @@ export default function Settings({ statuses, priorities, labels, assignees, proj
               />
 
               <h3 style={{ marginTop: 28 }}>Priorities</h3>
-              <p className="settings-hint">Shown as flags/chips on tasks, ordered top to bottom.</p>
+              <p className="settings-hint">Shown as flags/chips on tasks. Drag the handle to reorder.</p>
               <SettingsList
                 items={priorities}
+                reorderable
                 addPlaceholder="New priority name"
                 onCreate={(data) => api.createPriority(data).then(onChange)}
                 onUpdate={(id, patch) => api.updatePriority(id, patch).then(onChange)}
                 onDelete={(id, reassignTo) => api.deletePriority(id, reassignTo).then(onChange)}
+                onReorder={(ordered) => Promise.all(ordered.map((item, idx) => api.updatePriority(item.id, { sort_order: idx }))).then(onChange)}
               />
             </>
           )}

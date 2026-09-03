@@ -29,6 +29,30 @@ async function request(path, options = {}) {
   return res.json();
 }
 
+async function upload(path, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(BASE + path, { method: 'POST', credentials: 'include', body: formData });
+  if (res.status === 401) {
+    const err = new Error('unauthenticated');
+    err.status = 401;
+    throw err;
+  }
+  if (!res.ok) {
+    let message = `Upload failed: ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    const err = new Error(message);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
 export const api = {
   me: () => request('/auth/me'),
   login: (username, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
@@ -67,4 +91,7 @@ export const api = {
   createPriority: (data) => request('/priorities', { method: 'POST', body: JSON.stringify(data) }),
   updatePriority: (id, data) => request(`/priorities/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deletePriority: (id, reassignTo) => request(`/priorities/${id}${reassignTo ? `?reassign_to=${encodeURIComponent(reassignTo)}` : ''}`, { method: 'DELETE' }),
+
+  uploadAttachment: (taskId, file) => upload(`/tasks/${taskId}/attachments`, file),
+  deleteAttachment: (id) => request(`/attachments/${id}`, { method: 'DELETE' }),
 };

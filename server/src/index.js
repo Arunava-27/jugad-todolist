@@ -12,6 +12,7 @@ import labelRoutes from './routes/labels.js';
 import assigneeRoutes from './routes/assignees.js';
 import statusRoutes from './routes/statuses.js';
 import priorityRoutes from './routes/priorities.js';
+import attachmentRoutes from './routes/attachments.js';
 import { requireAuth } from './middleware/auth.js';
 import './db/index.js'; // ensure schema is applied on boot
 
@@ -42,6 +43,7 @@ app.use('/api/labels', requireAuth, labelRoutes);
 app.use('/api/assignees', requireAuth, assigneeRoutes);
 app.use('/api/statuses', requireAuth, statusRoutes);
 app.use('/api/priorities', requireAuth, priorityRoutes);
+app.use('/api', requireAuth, attachmentRoutes);
 
 // Serve the built frontend (web/dist) in production / when present.
 const webDist = path.resolve(__dirname, '../../web/dist');
