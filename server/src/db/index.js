@@ -2,8 +2,15 @@ import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load repo-root .env (if present — e.g. in Docker, env vars come from
+// docker-compose instead and no .env file exists, which dotenv treats as a
+// harmless no-op). This runs here rather than in index.js so it's picked up
+// by every entry point that touches the DB (the server, scripts/import-notion.js).
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 export const DATA_DIR = process.env.DATA_DIR || path.resolve(__dirname, '../../../data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });

@@ -25,23 +25,18 @@ Requires Node 20+.
 npm install                 # installs server + web workspaces
 ```
 
-Set env vars for local dev (needed every time you start the server — nothing is persisted outside
-these vars plus the SQLite file):
+Copy `.env.example` to `.env` at the repo root and fill it in (loaded automatically — no need to
+`$env:` export anything in your shell):
 
 ```bash
-node scripts/hash-password.js "yourpassword"   # copy the printed hash
+node scripts/hash-password.js "yourpassword"   # copy the printed hash into ADMIN_PASSWORD_HASH
 ```
 
 ```bash
-# Windows PowerShell
-$env:ADMIN_EMAIL="you@example.com"
-$env:ADMIN_NAME="Your Name"
-$env:ADMIN_PASSWORD_HASH="<hash from above>"
-$env:SESSION_SECRET="dev-secret"
 npm run dev:server     # http://localhost:3000 (API)
 ```
 
-The first time the server boots with those vars set, it seeds the admin account and a default
+The first time the server boots with `.env` filled in, it seeds the admin account and a default
 workspace for them. Import the Notion backup into that workspace once the server has booted at
 least once with admin env vars set:
 
