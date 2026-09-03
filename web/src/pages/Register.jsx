@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../lib/api.js';
+import PasswordInput from '../components/PasswordInput.jsx';
 
 export default function Register({ onRegistered, onSwitchToLogin }) {
   const [name, setName] = useState('');
@@ -38,7 +39,7 @@ export default function Register({ onRegistered, onSwitchToLogin }) {
         </label>
         <label>
           Password
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" />
+          <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" />
         </label>
         <label>
           Workspace name <span className="field-hint">(optional — you can rename it later)</span>

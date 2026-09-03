@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../lib/api.js';
+import PasswordInput from '../components/PasswordInput.jsx';
 
 export default function Login({ onLoggedIn, onSwitchToRegister }) {
   const [email, setEmail] = useState('');
@@ -32,7 +33,7 @@ export default function Login({ onLoggedIn, onSwitchToRegister }) {
         </label>
         <label>
           Password
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
         {error && <div className="login-error">{error}</div>}
         <button type="submit" disabled={loading}>{loading ? 'Signing in…' : 'Sign in'}</button>

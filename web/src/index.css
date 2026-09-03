@@ -81,6 +81,14 @@ input, select, textarea {
 .login-error { color: var(--danger); font-size: 13px; }
 .field-hint { font-weight: 400; text-transform: none; letter-spacing: 0; }
 .link-btn { background: none; border: none; color: var(--accent); font-size: 13px; padding: 4px 0; text-align: center; }
+.password-field { position: relative; display: flex; }
+.password-field input { width: 100%; padding-right: 34px; }
+.password-toggle {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; font-size: 14px; line-height: 1; cursor: pointer;
+  padding: 4px 6px; color: var(--text-muted); border-radius: 6px;
+}
+.password-toggle:hover { color: var(--text); background: var(--accent-soft); }
 
 /* ---------- Sidebar ---------- */
 .sidebar {
