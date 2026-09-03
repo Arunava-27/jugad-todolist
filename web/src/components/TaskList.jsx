@@ -1,6 +1,6 @@
-import { PRIORITY_COLORS, formatDueDate, isOverdue, initials } from '../lib/format.js';
+import { formatDueDate, isOverdue, initials, colorFor } from '../lib/format.js';
 
-export default function TaskList({ tasks, loading, onToggleComplete, onOpenTask }) {
+export default function TaskList({ tasks, priorities, loading, onToggleComplete, onOpenTask }) {
   if (loading) return <div className="empty-state">Loading tasks…</div>;
   if (tasks.length === 0) return <div className="empty-state">Nothing here. 🎉</div>;
 
@@ -10,7 +10,7 @@ export default function TaskList({ tasks, loading, onToggleComplete, onOpenTask 
         <li key={task.id} className={`task-row ${task.is_completed ? 'completed' : ''}`}>
           <button
             className="task-checkbox"
-            style={{ borderColor: PRIORITY_COLORS[task.priority] || '#94a3b8' }}
+            style={{ borderColor: colorFor(priorities, task.priority) }}
             onClick={() => onToggleComplete(task)}
             aria-label="Toggle complete"
           >
@@ -29,9 +29,9 @@ export default function TaskList({ tasks, loading, onToggleComplete, onOpenTask 
                 </span>
               )}
               {task.labels.map((l) => (
-                <span key={l} className="chip label-chip">{l}</span>
+                <span key={l.name} className="chip label-chip" style={{ background: (l.color || '#94a3b8') + '26', color: l.color }}>{l.name}</span>
               ))}
-              {task.status && task.status !== 'Not started' && (
+              {task.status && (
                 <span className="chip status-chip">{task.status}</span>
               )}
             </div>
@@ -40,7 +40,7 @@ export default function TaskList({ tasks, loading, onToggleComplete, onOpenTask 
           {task.assignees.length > 0 && (
             <div className="task-assignees">
               {task.assignees.map((a) => (
-                <span key={a} className="avatar" title={a}>{initials(a)}</span>
+                <span key={a.name} className="avatar" style={{ background: a.color || 'var(--accent)' }} title={a.name}>{initials(a.name)}</span>
               ))}
             </div>
           )}

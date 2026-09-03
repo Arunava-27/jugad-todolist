@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { PRIORITIES, STATUSES } from '../lib/format.js';
 
-export default function TaskModal({ task, projects, onClose, onUpdate, onDelete }) {
+export default function TaskModal({ task, projects, statuses, priorities, onClose, onUpdate, onDelete }) {
   const [form, setForm] = useState({
     title: task.title || '',
     description: task.description || '',
-    status: task.status || 'Not started',
+    status: task.status || statuses[0]?.name || '',
     priority: task.priority || '',
     platform: task.platform || '',
     due_date: task.due_date || '',
@@ -14,8 +13,8 @@ export default function TaskModal({ task, projects, onClose, onUpdate, onDelete 
     build_number: task.build_number || '',
     link: task.link || '',
     project_id: task.project_id || '',
-    labels: task.labels.join(', '),
-    assignees: task.assignees.join(', '),
+    labels: task.labels.map((l) => l.name).join(', '),
+    assignees: task.assignees.map((a) => a.name).join(', '),
   });
   const [saving, setSaving] = useState(false);
 
@@ -38,7 +37,8 @@ export default function TaskModal({ task, projects, onClose, onUpdate, onDelete 
         build_number: form.build_number || null,
         link: form.link || null,
         project_id: form.project_id ? Number(form.project_id) : null,
-        is_completed: form.status === 'Done',
+        // is_completed is deliberately omitted: the server derives it from
+        // whichever status is marked "done" in Settings > Workflow.
         labels: form.labels.split(',').map((s) => s.trim()).filter(Boolean),
         assignees: form.assignees.split(',').map((s) => s.trim()).filter(Boolean),
       });
@@ -75,14 +75,14 @@ export default function TaskModal({ task, projects, onClose, onUpdate, onDelete 
           <label>
             Status
             <select value={form.status} onChange={(e) => set('status', e.target.value)}>
-              {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              {statuses.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
             </select>
           </label>
           <label>
             Priority
             <select value={form.priority} onChange={(e) => set('priority', e.target.value)}>
               <option value="">None</option>
-              {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+              {priorities.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
             </select>
           </label>
           <label>

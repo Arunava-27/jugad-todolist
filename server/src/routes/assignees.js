@@ -21,6 +21,27 @@ router.post('/', (req, res) => {
   }
 });
 
+router.patch('/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const existing = db.prepare('SELECT * FROM assignees WHERE id = ?').get(id);
+  if (!existing) return res.status(404).json({ error: 'Assignee not found' });
+  const { name, color } = req.body || {};
+  const fields = [];
+  const values = [];
+  if (name !== undefined && name.trim()) { fields.push('name = ?'); values.push(name.trim()); }
+  if (color !== undefined) { fields.push('color = ?'); values.push(color); }
+  if (fields.length) {
+    values.push(id);
+    try {
+      db.prepare(`UPDATE assignees SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+    } catch (e) {
+      if (String(e.message).includes('UNIQUE')) return res.status(409).json({ error: 'An assignee with that name already exists' });
+      throw e;
+    }
+  }
+  res.json(db.prepare('SELECT * FROM assignees WHERE id = ?').get(id));
+});
+
 router.delete('/:id', (req, res) => {
   db.prepare('DELETE FROM assignees WHERE id = ?').run(Number(req.params.id));
   res.json({ ok: true });

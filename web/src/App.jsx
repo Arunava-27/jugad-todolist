@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from './lib/api.js';
 import Login from './pages/Login.jsx';
+import Settings from './pages/Settings.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import TaskList from './components/TaskList.jsx';
 import BoardView from './components/BoardView.jsx';
@@ -15,6 +16,8 @@ export default function App() {
   const [projects, setProjects] = useState([]);
   const [labels, setLabels] = useState([]);
   const [assignees, setAssignees] = useState([]);
+  const [statuses, setStatuses] = useState([]);
+  const [priorities, setPriorities] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
 
@@ -30,6 +33,8 @@ export default function App() {
     api.listProjects().then(setProjects).catch(() => {});
     api.listLabels().then(setLabels).catch(() => {});
     api.listAssignees().then(setAssignees).catch(() => {});
+    api.listStatuses().then(setStatuses).catch(() => {});
+    api.listPriorities().then(setPriorities).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -37,7 +42,7 @@ export default function App() {
   }, [user, refreshLookups]);
 
   const loadTasks = useCallback(() => {
-    if (!user) return;
+    if (!user || view.type === 'settings') return;
     setLoadingTasks(true);
     const params = {};
     if (view.type === 'today') {
@@ -70,6 +75,7 @@ export default function App() {
     upcoming: '🔭 Upcoming',
     inbox: '📥 Inbox',
     all: '🗂️ All tasks',
+    settings: '⚙️ Settings',
   }[view.type] || (view.type === 'project' ? currentProject?.name : `#${view.name}`);
 
   async function handleCreateTask(fields) {
@@ -134,22 +140,38 @@ export default function App() {
           )}
         </header>
 
-        <QuickAdd onCreate={handleCreateTask} projects={projects} />
-
-        {view.type === 'project' && view.mode === 'board' ? (
-          <BoardView
-            tasks={tasks}
-            loading={loadingTasks}
-            onUpdateTask={handleUpdateTask}
-            onOpenTask={setActiveTask}
+        {view.type === 'settings' ? (
+          <Settings
+            statuses={statuses}
+            priorities={priorities}
+            labels={labels}
+            assignees={assignees}
+            projects={projects}
+            onChange={refreshLookups}
           />
         ) : (
-          <TaskList
-            tasks={tasks}
-            loading={loadingTasks}
-            onToggleComplete={handleToggleComplete}
-            onOpenTask={setActiveTask}
-          />
+          <>
+            <QuickAdd onCreate={handleCreateTask} projects={projects} priorities={priorities} />
+
+            {view.type === 'project' && view.mode === 'board' ? (
+              <BoardView
+                tasks={tasks}
+                statuses={statuses}
+                priorities={priorities}
+                loading={loadingTasks}
+                onUpdateTask={handleUpdateTask}
+                onOpenTask={setActiveTask}
+              />
+            ) : (
+              <TaskList
+                tasks={tasks}
+                priorities={priorities}
+                loading={loadingTasks}
+                onToggleComplete={handleToggleComplete}
+                onOpenTask={setActiveTask}
+              />
+            )}
+          </>
         )}
       </main>
 
@@ -157,8 +179,8 @@ export default function App() {
         <TaskModal
           task={activeTask}
           projects={projects}
-          labels={labels}
-          assignees={assignees}
+          statuses={statuses}
+          priorities={priorities}
           onClose={() => setActiveTask(null)}
           onUpdate={handleUpdateTask}
           onDelete={handleDeleteTask}

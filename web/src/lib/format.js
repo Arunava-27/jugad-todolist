@@ -1,21 +1,3 @@
-export const PRIORITIES = [
-  '🔴 P1 - Urgent',
-  '🟠 P2 - High',
-  '🟡 P3 - Medium',
-  '🟢 P4 - Low',
-  '⚪ P5 - Optional',
-];
-
-export const PRIORITY_COLORS = {
-  '🔴 P1 - Urgent': '#e53e3e',
-  '🟠 P2 - High': '#f0993d',
-  '🟡 P3 - Medium': '#e2c53d',
-  '🟢 P4 - Low': '#3fae5f',
-  '⚪ P5 - Optional': '#a0aec0',
-};
-
-export const STATUSES = ['Not started', 'In progress', 'Ongoing', 'Maintenance', 'Clarity from IEMRF', 'Done'];
-
 export function todayISO() {
   const d = new Date();
   return d.toISOString().slice(0, 10);
@@ -49,4 +31,10 @@ export function initials(name) {
     .join('')
     .slice(0, 2)
     .toUpperCase();
+}
+
+// Look up a color from a {name, color} list (statuses/priorities/labels/assignees),
+// falling back to a neutral gray when the name isn't found (e.g. stale data).
+export function colorFor(list, name, fallback = '#94a3b8') {
+  return list?.find((x) => x.name === name)?.color || fallback;
 }

@@ -1,22 +1,23 @@
 import { useState } from 'react';
-import { STATUSES, PRIORITY_COLORS, formatDueDate } from '../lib/format.js';
+import { formatDueDate, colorFor } from '../lib/format.js';
 
-export default function BoardView({ tasks, loading, onUpdateTask, onOpenTask }) {
+export default function BoardView({ tasks, statuses, priorities, loading, onUpdateTask, onOpenTask }) {
   const [dragOverStatus, setDragOverStatus] = useState(null);
 
   if (loading) return <div className="empty-state">Loading tasks…</div>;
 
-  const columns = STATUSES.map((status) => ({
-    status,
-    tasks: tasks.filter((t) => t.status === status),
-  })).filter((c) => c.tasks.length > 0 || ['Not started', 'In progress', 'Done'].includes(c.status));
+  const columns = statuses.map((s) => ({
+    status: s.name,
+    color: s.color,
+    tasks: tasks.filter((t) => t.status === s.name),
+  }));
 
   function handleDrop(e, status) {
     e.preventDefault();
     setDragOverStatus(null);
     const taskId = Number(e.dataTransfer.getData('text/task-id'));
     if (!taskId) return;
-    onUpdateTask(taskId, { status, is_completed: status === 'Done' });
+    onUpdateTask(taskId, { status });
   }
 
   return (
@@ -29,7 +30,9 @@ export default function BoardView({ tasks, loading, onUpdateTask, onOpenTask }) 
           onDragLeave={() => setDragOverStatus(null)}
           onDrop={(e) => handleDrop(e, col.status)}
         >
-          <div className="board-column-title">{col.status} <span className="nav-count">{col.tasks.length}</span></div>
+          <div className="board-column-title">
+            <span className="dot" style={{ background: col.color }} /> {col.status} <span className="nav-count">{col.tasks.length}</span>
+          </div>
           <div className="board-column-body">
             {col.tasks.map((task) => (
               <div
@@ -42,7 +45,7 @@ export default function BoardView({ tasks, loading, onUpdateTask, onOpenTask }) 
                 <div className="board-card-title">{task.title}</div>
                 <div className="task-meta">
                   {task.priority && (
-                    <span className="chip" style={{ background: PRIORITY_COLORS[task.priority] + '22', color: PRIORITY_COLORS[task.priority] }}>
+                    <span className="chip" style={{ background: colorFor(priorities, task.priority) + '22', color: colorFor(priorities, task.priority) }}>
                       {task.priority.replace(/^[^\s]+\s/, '')}
                     </span>
                   )}

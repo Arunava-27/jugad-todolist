@@ -79,12 +79,16 @@ export default function Sidebar({ projects, labels, view, onSelectView, open, on
                 className={`nav-item ${view.type === 'label' && view.name === l.name ? 'active' : ''}`}
                 onClick={() => onSelectView({ type: 'label', name: l.name })}
               >
-                <span className="nav-icon">#</span> {l.name}
+                <span className="dot" style={{ background: l.color }} /> {l.name}
               </button>
             ))}
           </div>
         )}
 
+        <button
+          className={`nav-item ${view.type === 'settings' ? 'active' : ''}`}
+          onClick={() => onSelectView({ type: 'settings' })}
+        >⚙️ Settings</button>
         <button className="nav-item logout" onClick={onLogout}>⎋ Log out</button>
       </aside>
     </>

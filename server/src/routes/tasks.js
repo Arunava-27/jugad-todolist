@@ -43,12 +43,22 @@ function setTaskAssignees(taskId, names) {
 
 function hydrateTask(task) {
   const labels = db.prepare(
-    `SELECT l.name FROM labels l JOIN task_labels tl ON tl.label_id = l.id WHERE tl.task_id = ? ORDER BY l.name`
-  ).all(task.id).map((r) => r.name);
+    `SELECT l.name, l.color FROM labels l JOIN task_labels tl ON tl.label_id = l.id WHERE tl.task_id = ? ORDER BY l.name`
+  ).all(task.id);
   const assignees = db.prepare(
-    `SELECT a.name FROM assignees a JOIN task_assignees ta ON ta.assignee_id = a.id WHERE ta.task_id = ? ORDER BY a.name`
-  ).all(task.id).map((r) => r.name);
+    `SELECT a.name, a.color FROM assignees a JOIN task_assignees ta ON ta.assignee_id = a.id WHERE ta.task_id = ? ORDER BY a.name`
+  ).all(task.id);
   return { ...task, is_completed: !!task.is_completed, labels, assignees };
+}
+
+function defaultStatusName() {
+  const row = db.prepare('SELECT name FROM statuses WHERE is_default = 1 ORDER BY sort_order LIMIT 1').get()
+    || db.prepare('SELECT name FROM statuses ORDER BY sort_order LIMIT 1').get();
+  return row?.name || 'Not started';
+}
+
+function isDoneStatus(name) {
+  return !!db.prepare('SELECT is_done FROM statuses WHERE name = ?').get(name)?.is_done;
 }
 
 router.get('/', (req, res) => {
@@ -120,7 +130,7 @@ router.post('/', (req, res) => {
        estimate_hours, version, build_number, link, sort_order)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
-    b.project_id || null, b.title.trim(), b.description || null, b.status || 'Not started',
+    b.project_id || null, b.title.trim(), b.description || null, b.status || defaultStatusName(),
     b.priority || null, b.platform || null, b.due_date || null, b.estimate_hours ?? null,
     b.version || null, b.build_number || null, b.link || null, b.sort_order ?? Date.now()
   );
@@ -148,14 +158,28 @@ router.patch('/:id', (req, res) => {
   }
 
   if ('is_completed' in b) {
+    const completing = !!b.is_completed;
     updates.push('is_completed = ?');
-    values.push(b.is_completed ? 1 : 0);
+    values.push(completing ? 1 : 0);
     updates.push('completed_at = ?');
-    values.push(b.is_completed ? new Date().toISOString() : null);
-    if (b.is_completed && !('status' in b)) {
-      updates.push('status = ?');
-      values.push('Done');
+    values.push(completing ? new Date().toISOString() : null);
+    if (!('status' in b)) {
+      if (completing) {
+        const done = db.prepare('SELECT name FROM statuses WHERE is_done = 1 ORDER BY sort_order LIMIT 1').get();
+        if (done) { updates.push('status = ?'); values.push(done.name); }
+      } else if (isDoneStatus(existing.status)) {
+        updates.push('status = ?');
+        values.push(defaultStatusName());
+      }
     }
+  } else if ('status' in b) {
+    // Explicit status change (board drag, modal save) without an explicit completion
+    // flag: derive is_completed from whether the target status is marked "done".
+    const done = isDoneStatus(b.status);
+    updates.push('is_completed = ?');
+    values.push(done ? 1 : 0);
+    updates.push('completed_at = ?');
+    values.push(done ? new Date().toISOString() : null);
   }
 
   updates.push('updated_at = ?');

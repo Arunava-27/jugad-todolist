@@ -10,6 +10,8 @@ import projectRoutes from './routes/projects.js';
 import taskRoutes from './routes/tasks.js';
 import labelRoutes from './routes/labels.js';
 import assigneeRoutes from './routes/assignees.js';
+import statusRoutes from './routes/statuses.js';
+import priorityRoutes from './routes/priorities.js';
 import { requireAuth } from './middleware/auth.js';
 import './db/index.js'; // ensure schema is applied on boot
 
@@ -38,6 +40,8 @@ app.use('/api/projects', requireAuth, projectRoutes);
 app.use('/api/tasks', requireAuth, taskRoutes);
 app.use('/api/labels', requireAuth, labelRoutes);
 app.use('/api/assignees', requireAuth, assigneeRoutes);
+app.use('/api/statuses', requireAuth, statusRoutes);
+app.use('/api/priorities', requireAuth, priorityRoutes);
 
 // Serve the built frontend (web/dist) in production / when present.
 const webDist = path.resolve(__dirname, '../../web/dist');

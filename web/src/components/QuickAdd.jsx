@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { PRIORITIES } from '../lib/format.js';
 
-export default function QuickAdd({ onCreate, projects }) {
+export default function QuickAdd({ onCreate, projects, priorities }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -49,7 +48,7 @@ export default function QuickAdd({ onCreate, projects }) {
         <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         <select value={priority} onChange={(e) => setPriority(e.target.value)}>
           <option value="">Priority</option>
-          {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+          {priorities.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
         </select>
         <select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
           <option value="">No project</option>

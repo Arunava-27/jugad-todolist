@@ -13,13 +13,17 @@ async function request(path, options = {}) {
   }
   if (!res.ok) {
     let message = `Request failed: ${res.status}`;
+    let body = null;
     try {
-      const body = await res.json();
+      body = await res.json();
       if (body?.error) message = body.error;
     } catch {
       // ignore
     }
-    throw new Error(message);
+    const err = new Error(message);
+    err.status = res.status;
+    if (body && typeof body.count === 'number') err.count = body.count;
+    throw err;
   }
   if (res.status === 204) return null;
   return res.json();
@@ -45,5 +49,22 @@ export const api = {
   deleteTask: (id) => request(`/tasks/${id}`, { method: 'DELETE' }),
 
   listLabels: () => request('/labels'),
+  createLabel: (data) => request('/labels', { method: 'POST', body: JSON.stringify(data) }),
+  updateLabel: (id, data) => request(`/labels/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteLabel: (id) => request(`/labels/${id}`, { method: 'DELETE' }),
+
   listAssignees: () => request('/assignees'),
+  createAssignee: (data) => request('/assignees', { method: 'POST', body: JSON.stringify(data) }),
+  updateAssignee: (id, data) => request(`/assignees/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteAssignee: (id) => request(`/assignees/${id}`, { method: 'DELETE' }),
+
+  listStatuses: () => request('/statuses'),
+  createStatus: (data) => request('/statuses', { method: 'POST', body: JSON.stringify(data) }),
+  updateStatus: (id, data) => request(`/statuses/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteStatus: (id, reassignTo) => request(`/statuses/${id}${reassignTo ? `?reassign_to=${encodeURIComponent(reassignTo)}` : ''}`, { method: 'DELETE' }),
+
+  listPriorities: () => request('/priorities'),
+  createPriority: (data) => request('/priorities', { method: 'POST', body: JSON.stringify(data) }),
+  updatePriority: (id, data) => request(`/priorities/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deletePriority: (id, reassignTo) => request(`/priorities/${id}${reassignTo ? `?reassign_to=${encodeURIComponent(reassignTo)}` : ''}`, { method: 'DELETE' }),
 };
