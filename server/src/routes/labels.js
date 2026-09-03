@@ -4,14 +4,14 @@ import db from '../db/index.js';
 const router = Router();
 
 router.get('/', (req, res) => {
-  res.json(db.prepare('SELECT * FROM labels ORDER BY name').all());
+  res.json(db.prepare('SELECT * FROM labels WHERE workspace_id = ? ORDER BY name').all(req.workspaceId));
 });
 
 router.post('/', (req, res) => {
   const { name, color } = req.body || {};
   if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
   try {
-    const info = db.prepare('INSERT INTO labels (name, color) VALUES (?, ?)').run(name.trim(), color || '#94a3b8');
+    const info = db.prepare('INSERT INTO labels (workspace_id, name, color) VALUES (?, ?, ?)').run(req.workspaceId, name.trim(), color || '#94a3b8');
     res.status(201).json(db.prepare('SELECT * FROM labels WHERE id = ?').get(info.lastInsertRowid));
   } catch (e) {
     if (String(e.message).includes('UNIQUE')) {
@@ -23,7 +23,7 @@ router.post('/', (req, res) => {
 
 router.patch('/:id', (req, res) => {
   const id = Number(req.params.id);
-  const existing = db.prepare('SELECT * FROM labels WHERE id = ?').get(id);
+  const existing = db.prepare('SELECT * FROM labels WHERE id = ? AND workspace_id = ?').get(id, req.workspaceId);
   if (!existing) return res.status(404).json({ error: 'Label not found' });
   const { name, color } = req.body || {};
   const fields = [];
@@ -43,7 +43,9 @@ router.patch('/:id', (req, res) => {
 });
 
 router.delete('/:id', (req, res) => {
-  db.prepare('DELETE FROM labels WHERE id = ?').run(Number(req.params.id));
+  const existing = db.prepare('SELECT * FROM labels WHERE id = ? AND workspace_id = ?').get(Number(req.params.id), req.workspaceId);
+  if (!existing) return res.status(404).json({ error: 'Label not found' });
+  db.prepare('DELETE FROM labels WHERE id = ?').run(existing.id);
   res.json({ ok: true });
 });
 

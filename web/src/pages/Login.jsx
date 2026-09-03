@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { api } from '../lib/api.js';
 
-export default function Login({ onLoggedIn }) {
-  const [username, setUsername] = useState('');
+export default function Login({ onLoggedIn, onSwitchToRegister }) {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -12,8 +12,8 @@ export default function Login({ onLoggedIn }) {
     setError('');
     setLoading(true);
     try {
-      const user = await api.login(username, password);
-      onLoggedIn(user);
+      const result = await api.login(email, password);
+      onLoggedIn(result);
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {
@@ -25,10 +25,10 @@ export default function Login({ onLoggedIn }) {
     <div className="login-screen">
       <form className="login-card" onSubmit={submit}>
         <h1>Jugad Todolist</h1>
-        <p className="login-sub">Sign in to your task list</p>
+        <p className="login-sub">Sign in to your workspace</p>
         <label>
-          Username
-          <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
+          Email
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
         </label>
         <label>
           Password
@@ -36,6 +36,7 @@ export default function Login({ onLoggedIn }) {
         </label>
         {error && <div className="login-error">{error}</div>}
         <button type="submit" disabled={loading}>{loading ? 'Signing in…' : 'Sign in'}</button>
+        <button type="button" className="link-btn" onClick={onSwitchToRegister}>No account? Register</button>
       </form>
     </div>
   );

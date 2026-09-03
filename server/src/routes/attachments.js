@@ -34,14 +34,24 @@ function attachmentUrl(a) {
   return `/api/attachments/${a.id}/file`;
 }
 
+// Attachments are reached by id (e.g. plain <img src>, which can't carry a
+// custom X-Workspace-Id header), so authorization here is self-contained:
+// resolve the workspace from the task the attachment/task belongs to and
+// check membership directly, rather than relying on the requireWorkspace
+// middleware used by the other data routes.
+function canAccessWorkspace(user, workspaceId) {
+  if (user.role === 'admin') return true;
+  return !!db.prepare('SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(workspaceId, user.id);
+}
+
 const router = Router();
 
 router.post('/tasks/:taskId/attachments', (req, res) => {
   upload.single('file')(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message });
     const taskId = Number(req.params.taskId);
-    const task = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
-    if (!task) {
+    const task = db.prepare('SELECT id, workspace_id FROM tasks WHERE id = ?').get(taskId);
+    if (!task || !canAccessWorkspace(req.user, task.workspace_id)) {
       if (req.file) fs.unlink(req.file.path, () => {});
       return res.status(404).json({ error: 'Task not found' });
     }
@@ -56,13 +66,19 @@ router.post('/tasks/:taskId/attachments', (req, res) => {
 });
 
 router.get('/tasks/:taskId/attachments', (req, res) => {
-  const rows = db.prepare('SELECT * FROM attachments WHERE task_id = ? ORDER BY created_at').all(Number(req.params.taskId));
+  const taskId = Number(req.params.taskId);
+  const task = db.prepare('SELECT id, workspace_id FROM tasks WHERE id = ?').get(taskId);
+  if (!task || !canAccessWorkspace(req.user, task.workspace_id)) return res.status(404).json({ error: 'Task not found' });
+
+  const rows = db.prepare('SELECT * FROM attachments WHERE task_id = ? ORDER BY created_at').all(taskId);
   res.json(rows.map((r) => ({ ...r, url: attachmentUrl(r) })));
 });
 
 router.get('/attachments/:id/file', (req, res) => {
-  const row = db.prepare('SELECT * FROM attachments WHERE id = ?').get(Number(req.params.id));
-  if (!row) return res.status(404).end();
+  const row = db.prepare(
+    `SELECT a.*, t.workspace_id FROM attachments a JOIN tasks t ON t.id = a.task_id WHERE a.id = ?`
+  ).get(Number(req.params.id));
+  if (!row || !canAccessWorkspace(req.user, row.workspace_id)) return res.status(404).end();
   const filePath = path.join(UPLOAD_DIR, row.filename);
   if (!fs.existsSync(filePath)) return res.status(404).end();
   res.setHeader('Content-Type', row.mime_type || 'application/octet-stream');
@@ -71,8 +87,10 @@ router.get('/attachments/:id/file', (req, res) => {
 });
 
 router.delete('/attachments/:id', (req, res) => {
-  const row = db.prepare('SELECT * FROM attachments WHERE id = ?').get(Number(req.params.id));
-  if (!row) return res.status(404).json({ error: 'Not found' });
+  const row = db.prepare(
+    `SELECT a.*, t.workspace_id FROM attachments a JOIN tasks t ON t.id = a.task_id WHERE a.id = ?`
+  ).get(Number(req.params.id));
+  if (!row || !canAccessWorkspace(req.user, row.workspace_id)) return res.status(404).json({ error: 'Not found' });
   db.prepare('DELETE FROM attachments WHERE id = ?').run(row.id);
   fs.unlink(path.join(UPLOAD_DIR, row.filename), () => {});
   res.json({ ok: true });

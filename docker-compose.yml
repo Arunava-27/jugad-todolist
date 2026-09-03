@@ -5,8 +5,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_NAME: ${ADMIN_NAME}
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
+      DEFAULT_WORKSPACE_NAME: ${DEFAULT_WORKSPACE_NAME}
       SESSION_SECRET: ${SESSION_SECRET}
     volumes:
       - app-data:/data

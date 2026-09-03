@@ -1,31 +1,68 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import db, { seedDefaultWorkflow } from '../db/index.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-// Single-user auth. Credentials come from env vars:
-//   ADMIN_USERNAME  - plain username
-//   ADMIN_PASSWORD_HASH - bcrypt hash of the password (generate with scripts/hash-password.js)
-router.post('/login', async (req, res) => {
-  const { username, password } = req.body || {};
-  const expectedUser = process.env.ADMIN_USERNAME;
-  const expectedHash = process.env.ADMIN_PASSWORD_HASH;
+function publicUser(user) {
+  return { id: user.id, email: user.email, name: user.name, role: user.role };
+}
 
-  if (!expectedUser || !expectedHash) {
-    return res.status(500).json({ error: 'Server auth is not configured' });
+function myWorkspaces(userId) {
+  return db.prepare(
+    `SELECT w.id, w.name, wm.role as my_role
+     FROM workspaces w JOIN workspace_members wm ON wm.workspace_id = w.id
+     WHERE wm.user_id = ? ORDER BY w.name COLLATE NOCASE`
+  ).all(userId);
+}
+
+router.post('/register', (req, res) => {
+  const { email, name, password, workspaceName } = req.body || {};
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  const cleanName = String(name || '').trim();
+
+  if (!cleanEmail || !cleanEmail.includes('@')) return res.status(400).json({ error: 'A valid email is required' });
+  if (!cleanName) return res.status(400).json({ error: 'Name is required' });
+  if (!password || password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
+  if (existing) return res.status(409).json({ error: 'An account with that email already exists' });
+
+  const passwordHash = bcrypt.hashSync(password, 10);
+
+  const result = db.transaction(() => {
+    const userInfo = db.prepare(
+      'INSERT INTO users (email, name, password_hash, role, is_active) VALUES (?, ?, ?, ?, 1)'
+    ).run(cleanEmail, cleanName, passwordHash, 'member');
+    const userId = userInfo.lastInsertRowid;
+
+    const wsInfo = db.prepare('INSERT INTO workspaces (name, created_by) VALUES (?, ?)')
+      .run((workspaceName && workspaceName.trim()) || `${cleanName}'s Workspace`, userId);
+    const workspaceId = wsInfo.lastInsertRowid;
+    db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(workspaceId, userId, 'owner');
+    seedDefaultWorkflow(workspaceId);
+
+    return userId;
+  })();
+
+  req.session.userId = result;
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result);
+  res.status(201).json({ user: publicUser(user), workspaces: myWorkspaces(result) });
+});
+
+router.post('/login', (req, res) => {
+  const { email, password } = req.body || {};
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  if (!cleanEmail || !password) return res.status(400).json({ error: 'Email and password required' });
+
+  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail);
+  if (!user || !user.is_active || !bcrypt.compareSync(password, user.password_hash)) {
+    return res.status(401).json({ error: 'Invalid email or password' });
   }
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password required' });
-  }
-  if (username !== expectedUser) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
-  const ok = await bcrypt.compare(password, expectedHash);
-  if (!ok) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
-  req.session.user = { username };
-  res.json({ username });
+
+  req.session.userId = user.id;
+  res.json({ user: publicUser(user), workspaces: myWorkspaces(user.id) });
 });
 
 router.post('/logout', (req, res) => {
@@ -33,11 +70,8 @@ router.post('/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-router.get('/me', (req, res) => {
-  if (req.session && req.session.user) {
-    return res.json({ username: req.session.user.username });
-  }
-  res.status(401).json({ error: 'Not authenticated' });
+router.get('/me', requireAuth, (req, res) => {
+  res.json({ user: publicUser(req.user), workspaces: myWorkspaces(req.user.id) });
 });
 
 export default router;

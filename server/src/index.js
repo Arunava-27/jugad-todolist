@@ -6,6 +6,8 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import authRoutes from './routes/auth.js';
+import workspaceRoutes from './routes/workspaces.js';
+import adminRoutes from './routes/admin.js';
 import projectRoutes from './routes/projects.js';
 import taskRoutes from './routes/tasks.js';
 import labelRoutes from './routes/labels.js';
@@ -13,7 +15,7 @@ import assigneeRoutes from './routes/assignees.js';
 import statusRoutes from './routes/statuses.js';
 import priorityRoutes from './routes/priorities.js';
 import attachmentRoutes from './routes/attachments.js';
-import { requireAuth } from './middleware/auth.js';
+import { requireAuth, requireAdmin, requireWorkspace } from './middleware/auth.js';
 import './db/index.js'; // ensure schema is applied on boot
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -37,13 +39,15 @@ app.use(cookieSession({
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 app.use('/api/auth', authRoutes);
-app.use('/api/projects', requireAuth, projectRoutes);
-app.use('/api/tasks', requireAuth, taskRoutes);
-app.use('/api/labels', requireAuth, labelRoutes);
-app.use('/api/assignees', requireAuth, assigneeRoutes);
-app.use('/api/statuses', requireAuth, statusRoutes);
-app.use('/api/priorities', requireAuth, priorityRoutes);
-app.use('/api', requireAuth, attachmentRoutes);
+app.use('/api/workspaces', requireAuth, workspaceRoutes);
+app.use('/api/admin', requireAuth, requireAdmin, adminRoutes);
+app.use('/api/projects', requireAuth, requireWorkspace, projectRoutes);
+app.use('/api/tasks', requireAuth, requireWorkspace, taskRoutes);
+app.use('/api/labels', requireAuth, requireWorkspace, labelRoutes);
+app.use('/api/assignees', requireAuth, requireWorkspace, assigneeRoutes);
+app.use('/api/statuses', requireAuth, requireWorkspace, statusRoutes);
+app.use('/api/priorities', requireAuth, requireWorkspace, priorityRoutes);
+app.use('/api', requireAuth, attachmentRoutes); // self-scopes per attachment/task, see routes/attachments.js
 
 // Serve the built frontend (web/dist) in production / when present.
 const webDist = path.resolve(__dirname, '../../web/dist');

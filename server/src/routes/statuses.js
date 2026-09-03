@@ -4,17 +4,17 @@ import db from '../db/index.js';
 const router = Router();
 
 router.get('/', (req, res) => {
-  res.json(db.prepare('SELECT * FROM statuses ORDER BY sort_order').all());
+  res.json(db.prepare('SELECT * FROM statuses WHERE workspace_id = ? ORDER BY sort_order').all(req.workspaceId));
 });
 
 router.post('/', (req, res) => {
   const { name, color, is_done } = req.body || {};
   if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
-  const maxOrder = db.prepare('SELECT MAX(sort_order) m FROM statuses').get().m ?? -1;
+  const maxOrder = db.prepare('SELECT MAX(sort_order) m FROM statuses WHERE workspace_id = ?').get(req.workspaceId).m ?? -1;
   try {
     const info = db.prepare(
-      'INSERT INTO statuses (name, color, sort_order, is_done) VALUES (?, ?, ?, ?)'
-    ).run(name.trim(), color || '#94a3b8', maxOrder + 1, is_done ? 1 : 0);
+      'INSERT INTO statuses (workspace_id, name, color, sort_order, is_done) VALUES (?, ?, ?, ?, ?)'
+    ).run(req.workspaceId, name.trim(), color || '#94a3b8', maxOrder + 1, is_done ? 1 : 0);
     res.status(201).json(db.prepare('SELECT * FROM statuses WHERE id = ?').get(info.lastInsertRowid));
   } catch (e) {
     if (String(e.message).includes('UNIQUE')) return res.status(409).json({ error: 'A status with that name already exists' });
@@ -24,18 +24,18 @@ router.post('/', (req, res) => {
 
 router.patch('/:id', (req, res) => {
   const id = Number(req.params.id);
-  const existing = db.prepare('SELECT * FROM statuses WHERE id = ?').get(id);
+  const existing = db.prepare('SELECT * FROM statuses WHERE id = ? AND workspace_id = ?').get(id, req.workspaceId);
   if (!existing) return res.status(404).json({ error: 'Status not found' });
   const { name, color, sort_order, is_done, is_default } = req.body || {};
 
   const run = db.transaction(() => {
     if (name !== undefined && name.trim() && name.trim() !== existing.name) {
-      const clash = db.prepare('SELECT id FROM statuses WHERE name = ? AND id != ?').get(name.trim(), id);
+      const clash = db.prepare('SELECT id FROM statuses WHERE workspace_id = ? AND name = ? AND id != ?').get(req.workspaceId, name.trim(), id);
       if (clash) throw Object.assign(new Error('A status with that name already exists'), { status: 409 });
-      db.prepare('UPDATE tasks SET status = ? WHERE status = ?').run(name.trim(), existing.name);
+      db.prepare('UPDATE tasks SET status = ? WHERE workspace_id = ? AND status = ?').run(name.trim(), req.workspaceId, existing.name);
     }
     if (is_default) {
-      db.prepare('UPDATE statuses SET is_default = 0 WHERE id != ?').run(id);
+      db.prepare('UPDATE statuses SET is_default = 0 WHERE workspace_id = ? AND id != ?').run(req.workspaceId, id);
     }
     const fields = [];
     const values = [];
@@ -61,25 +61,25 @@ router.patch('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = Number(req.params.id);
-  const existing = db.prepare('SELECT * FROM statuses WHERE id = ?').get(id);
+  const existing = db.prepare('SELECT * FROM statuses WHERE id = ? AND workspace_id = ?').get(id, req.workspaceId);
   if (!existing) return res.status(404).json({ error: 'Status not found' });
 
-  const inUse = db.prepare('SELECT COUNT(*) c FROM tasks WHERE status = ?').get(existing.name).c;
+  const inUse = db.prepare('SELECT COUNT(*) c FROM tasks WHERE workspace_id = ? AND status = ?').get(req.workspaceId, existing.name).c;
   const reassignTo = req.query.reassign_to;
 
   if (inUse > 0 && !reassignTo) {
     return res.status(409).json({ error: 'Status is in use by tasks', count: inUse });
   }
-  const total = db.prepare('SELECT COUNT(*) c FROM statuses').get().c;
+  const total = db.prepare('SELECT COUNT(*) c FROM statuses WHERE workspace_id = ?').get(req.workspaceId).c;
   if (total <= 1) return res.status(400).json({ error: 'At least one status must remain' });
 
   const run = db.transaction(() => {
     if (inUse > 0 && reassignTo) {
-      db.prepare('UPDATE tasks SET status = ? WHERE status = ?').run(reassignTo, existing.name);
+      db.prepare('UPDATE tasks SET status = ? WHERE workspace_id = ? AND status = ?').run(reassignTo, req.workspaceId, existing.name);
     }
     db.prepare('DELETE FROM statuses WHERE id = ?').run(id);
     if (existing.is_default) {
-      const next = db.prepare('SELECT id FROM statuses ORDER BY sort_order LIMIT 1').get();
+      const next = db.prepare('SELECT id FROM statuses WHERE workspace_id = ? ORDER BY sort_order LIMIT 1').get(req.workspaceId);
       if (next) db.prepare('UPDATE statuses SET is_default = 1 WHERE id = ?').run(next.id);
     }
   });

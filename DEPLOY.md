@@ -49,16 +49,23 @@ cp .env.example .env
 
 Edit `.env` and fill in:
 - `DOMAIN` = the DuckDNS domain from step 2 (e.g. `arunava-todo.duckdns.org`)
-- `ADMIN_USERNAME` = whatever login you want
+- `ADMIN_EMAIL` / `ADMIN_NAME` = the seeded admin account's login and display name
 - `ADMIN_PASSWORD_HASH` = output of `node scripts/hash-password.js "your-password"` (run this once
   locally where Node is installed, or `docker compose run --rm app node scripts/hash-password.js "your-password"`
   after step 6 below)
+- `DEFAULT_WORKSPACE_NAME` = whatever you want the admin's first workspace called (optional, defaults
+  to "Default Workspace")
 - `SESSION_SECRET` = any long random string
+
+Registration is open by default — anyone with the site URL can create their own account (and gets
+their own workspace). If you'd rather lock that down, that's a code change to `server/src/routes/auth.js`
+(e.g. gate `/register` behind an invite code) — ask for it if you want it added.
 
 ## 6. Import your Notion backup once
 
 The snapshot already pulled from Notion lives in `scripts/notion-export.json` (committed with the repo).
-Seed the database with it before first boot:
+Running the import boots the same admin/workspace seeding the server does, then imports into that
+workspace — do this before first `docker compose up`:
 
 ```bash
 docker compose run --rm app node ../scripts/import-notion.js

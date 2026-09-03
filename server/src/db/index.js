@@ -12,49 +12,196 @@ const DB_PATH = path.join(DATA_DIR, 'app.db');
 
 export const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+// Foreign key enforcement is turned on only after all migrations below have
+// run — some of them rebuild tables (drop + recreate), which SQLite refuses
+// mid-migration if enforcement is already on and child rows still exist.
+db.pragma('foreign_keys = OFF');
 
 const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
 db.exec(schema);
 
-// --- migrations for columns added after the initial release ---
+// --- migrations for tables/columns added after the initial release ---
 function hasColumn(table, column) {
   return db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
 }
+
 if (!hasColumn('assignees', 'color')) {
   db.exec("ALTER TABLE assignees ADD COLUMN color TEXT DEFAULT '#6366f1'");
 }
 
-// --- seed default workflow (statuses/priorities) on first boot only ---
-// Names match what the Notion import already wrote into tasks.status /
-// tasks.priority, so existing imported data keeps working unchanged.
-const statusCount = db.prepare('SELECT COUNT(*) c FROM statuses').get().c;
-if (statusCount === 0) {
-  const insert = db.prepare(
-    'INSERT INTO statuses (name, color, sort_order, is_done, is_default) VALUES (?, ?, ?, ?, ?)'
-  );
-  const seed = db.transaction(() => {
-    insert.run('Not started', '#94a3b8', 0, 0, 1);
-    insert.run('In progress', '#6366f1', 1, 0, 0);
-    insert.run('Ongoing', '#8b5cf6', 2, 0, 0);
-    insert.run('Maintenance', '#eab308', 3, 0, 0);
-    insert.run('Clarity from IEMRF', '#ec4899', 4, 0, 0);
-    insert.run('Done', '#22c55e', 5, 1, 0);
-  });
-  seed();
+// Simple additive columns: safe as a plain ALTER (nullable, backfilled below).
+for (const table of ['projects', 'tasks']) {
+  if (!hasColumn(table, 'workspace_id')) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE`);
+  }
 }
 
-const priorityCount = db.prepare('SELECT COUNT(*) c FROM priorities').get().c;
-if (priorityCount === 0) {
-  const insert = db.prepare('INSERT INTO priorities (name, color, sort_order) VALUES (?, ?, ?)');
-  const seed = db.transaction(() => {
-    insert.run('🔴 P1 - Urgent', '#e53e3e', 0);
-    insert.run('🟠 P2 - High', '#f0993d', 1);
-    insert.run('🟡 P3 - Medium', '#e2c53d', 2);
-    insert.run('🟢 P4 - Low', '#3fae5f', 3);
-    insert.run('⚪ P5 - Optional', '#a0aec0', 4);
+// Tables whose uniqueness constraint changed from UNIQUE(name) to
+// UNIQUE(workspace_id, name) need a rebuild — SQLite can't alter constraints
+// in place. IMPORTANT: this creates the replacement under a temporary name
+// and renames *that* into place, rather than renaming the original table out
+// of the way — renaming a table SQLite still has other tables' foreign keys
+// pointing at automatically rewrites those FK definitions to the new name,
+// which would leave them dangling once the temp table is dropped.
+function rebuildWithWorkspaceScope(table, createSql, copyColumns) {
+  if (hasColumn(table, 'workspace_id')) return;
+  const tmp = `${table}__migrating`;
+  db.exec(createSql.replace(new RegExp(`CREATE TABLE ${table}\\b`), `CREATE TABLE ${tmp}`));
+  db.exec(`INSERT INTO ${tmp} (${copyColumns}) SELECT ${copyColumns} FROM ${table}`);
+  db.exec(`DROP TABLE ${table}`);
+  db.exec(`ALTER TABLE ${tmp} RENAME TO ${table}`);
+}
+
+rebuildWithWorkspaceScope(
+  'labels',
+  `CREATE TABLE labels (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    color TEXT DEFAULT '#94a3b8',
+    UNIQUE (workspace_id, name)
+  )`,
+  'id, name, color'
+);
+
+rebuildWithWorkspaceScope(
+  'assignees',
+  `CREATE TABLE assignees (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    color TEXT DEFAULT '#6366f1',
+    UNIQUE (workspace_id, name)
+  )`,
+  'id, name, color'
+);
+
+rebuildWithWorkspaceScope(
+  'statuses',
+  `CREATE TABLE statuses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    color TEXT DEFAULT '#94a3b8',
+    sort_order REAL NOT NULL DEFAULT 0,
+    is_done INTEGER NOT NULL DEFAULT 0,
+    is_default INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (workspace_id, name)
+  )`,
+  'id, name, color, sort_order, is_done, is_default'
+);
+
+rebuildWithWorkspaceScope(
+  'priorities',
+  `CREATE TABLE priorities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    color TEXT DEFAULT '#94a3b8',
+    sort_order REAL NOT NULL DEFAULT 0,
+    UNIQUE (workspace_id, name)
+  )`,
+  'id, name, color, sort_order'
+);
+
+// One-time repair for databases that already went through an earlier, buggy
+// version of the migration above (which used to rename tables out of the way
+// first — SQLite then auto-rewrote task_labels/task_assignees' FK clauses to
+// point at the now-dropped "_old" table). Rebuilding these two join tables
+// re-points their FK text at the real, current labels/assignees tables
+// without touching any data (the row values were never wrong, only the
+// stored constraint text was).
+for (const [table, refTable] of [['task_labels', 'labels'], ['task_assignees', 'assignees']]) {
+  const row = db.prepare('SELECT sql FROM sqlite_master WHERE name = ?').get(table);
+  if (row && /_old/.test(row.sql)) {
+    const tmp = `${table}__migrating`;
+    const otherCol = table === 'task_labels' ? 'label_id' : 'assignee_id';
+    db.exec(`CREATE TABLE ${tmp} (
+      task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      ${otherCol} INTEGER NOT NULL REFERENCES ${refTable}(id) ON DELETE CASCADE,
+      PRIMARY KEY (task_id, ${otherCol})
+    )`);
+    db.exec(`INSERT INTO ${tmp} (task_id, ${otherCol}) SELECT task_id, ${otherCol} FROM ${table}`);
+    db.exec(`DROP TABLE ${table}`);
+    db.exec(`ALTER TABLE ${tmp} RENAME TO ${table}`);
+  }
+}
+
+// Now that every table definitely has workspace_id (and correct FK text),
+// it's safe to index it and turn foreign key enforcement back on.
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_projects_workspace ON projects(workspace_id);
+  CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks(workspace_id);
+  CREATE INDEX IF NOT EXISTS idx_labels_workspace ON labels(workspace_id);
+  CREATE INDEX IF NOT EXISTS idx_assignees_workspace ON assignees(workspace_id);
+  CREATE INDEX IF NOT EXISTS idx_statuses_workspace ON statuses(workspace_id);
+  CREATE INDEX IF NOT EXISTS idx_priorities_workspace ON priorities(workspace_id);
+`);
+db.pragma('foreign_keys = ON');
+
+// --- seed the admin account from env, and a default workspace to carry any
+// pre-existing (pre-workspace) data forward into ---
+const adminEmail = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+const adminName = process.env.ADMIN_NAME || 'Admin';
+
+if (adminEmail && adminPasswordHash) {
+  const existing = db.prepare('SELECT * FROM users WHERE email = ?').get(adminEmail);
+  if (!existing) {
+    db.prepare(
+      'INSERT INTO users (email, name, password_hash, role, is_active) VALUES (?, ?, ?, ?, 1)'
+    ).run(adminEmail, adminName, adminPasswordHash, 'admin');
+  } else if (existing.role !== 'admin') {
+    // Env is the source of truth for who the admin is.
+    db.prepare('UPDATE users SET role = ? WHERE id = ?').run('admin', existing.id);
+  }
+}
+
+export function seedDefaultWorkflow(workspaceId) {
+  const insertStatus = db.prepare(
+    'INSERT INTO statuses (workspace_id, name, color, sort_order, is_done, is_default) VALUES (?, ?, ?, ?, ?, ?)'
+  );
+  const seedStatuses = db.transaction(() => {
+    insertStatus.run(workspaceId, 'Not started', '#94a3b8', 0, 0, 1);
+    insertStatus.run(workspaceId, 'In progress', '#6366f1', 1, 0, 0);
+    insertStatus.run(workspaceId, 'Done', '#22c55e', 2, 1, 0);
   });
-  seed();
+  seedStatuses();
+
+  const insertPriority = db.prepare('INSERT INTO priorities (workspace_id, name, color, sort_order) VALUES (?, ?, ?, ?)');
+  const seedPriorities = db.transaction(() => {
+    insertPriority.run(workspaceId, '🔴 P1 - Urgent', '#e53e3e', 0);
+    insertPriority.run(workspaceId, '🟠 P2 - High', '#f0993d', 1);
+    insertPriority.run(workspaceId, '🟡 P3 - Medium', '#e2c53d', 2);
+    insertPriority.run(workspaceId, '🟢 P4 - Low', '#3fae5f', 3);
+    insertPriority.run(workspaceId, '⚪ P5 - Optional', '#a0aec0', 4);
+  });
+  seedPriorities();
+}
+
+// Ensure a bootstrap workspace exists for the seeded admin (first boot, or
+// upgrading a pre-workspace database) so existing/admin data has somewhere to
+// live. Skipped entirely if no admin is configured yet — creating a workspace
+// with zero members would just be inaccessible to everyone, so this waits
+// until ADMIN_EMAIL/ADMIN_PASSWORD_HASH are actually set and the server is
+// restarted.
+const workspaceCount = db.prepare('SELECT COUNT(*) c FROM workspaces').get().c;
+const admin = adminEmail ? db.prepare('SELECT * FROM users WHERE email = ?').get(adminEmail) : null;
+if (workspaceCount === 0 && admin) {
+  const info = db.prepare('INSERT INTO workspaces (name, created_by) VALUES (?, ?)')
+    .run(process.env.DEFAULT_WORKSPACE_NAME || 'Default Workspace', admin.id);
+  const workspaceId = info.lastInsertRowid;
+  db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(workspaceId, admin.id, 'owner');
+
+  // Backfill any rows left over from before workspaces existed (fresh installs
+  // have nothing to backfill here, this is a no-op).
+  for (const table of ['projects', 'tasks', 'labels', 'assignees', 'statuses', 'priorities']) {
+    db.prepare(`UPDATE ${table} SET workspace_id = ? WHERE workspace_id IS NULL`).run(workspaceId);
+  }
+
+  // Only seed a default workflow if the backfill didn't already carry one over.
+  const statusCount = db.prepare('SELECT COUNT(*) c FROM statuses WHERE workspace_id = ?').get(workspaceId).c;
+  if (statusCount === 0) seedDefaultWorkflow(workspaceId);
 }
 
 export default db;

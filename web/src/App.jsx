@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
-import { api } from './lib/api.js';
+import { api, setActiveWorkspaceId } from './lib/api.js';
 import Login from './pages/Login.jsx';
+import Register from './pages/Register.jsx';
 import Settings from './pages/Settings.jsx';
+import Admin from './pages/Admin.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import TaskList from './components/TaskList.jsx';
 import BoardView from './components/BoardView.jsx';
@@ -9,9 +11,14 @@ import TaskModal from './components/TaskModal.jsx';
 import QuickAdd from './components/QuickAdd.jsx';
 import { todayISO } from './lib/format.js';
 
+const ACTIVE_WORKSPACE_KEY = 'jugad-active-workspace';
+
 export default function App() {
   const [authChecked, setAuthChecked] = useState(false);
+  const [authScreen, setAuthScreen] = useState('login'); // 'login' | 'register'
   const [user, setUser] = useState(null);
+  const [workspaces, setWorkspaces] = useState([]);
+  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState(null);
 
   const [projects, setProjects] = useState([]);
   const [labels, setLabels] = useState([]);
@@ -26,23 +33,43 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    api.me().then((u) => setUser(u)).catch(() => setUser(null)).finally(() => setAuthChecked(true));
+    api.me()
+      .then(({ user, workspaces }) => applyAuthResult({ user, workspaces }))
+      .catch(() => setUser(null))
+      .finally(() => setAuthChecked(true));
   }, []);
 
+  function applyAuthResult({ user, workspaces }) {
+    setUser(user);
+    setWorkspaces(workspaces);
+    let saved = null;
+    try { saved = Number(localStorage.getItem(ACTIVE_WORKSPACE_KEY)); } catch { /* ignore */ }
+    const valid = workspaces.find((w) => w.id === saved) ? saved : workspaces[0]?.id ?? null;
+    switchWorkspace(valid);
+  }
+
+  function switchWorkspace(id) {
+    setActiveWorkspaceIdState(id);
+    setActiveWorkspaceId(id);
+    try { if (id) localStorage.setItem(ACTIVE_WORKSPACE_KEY, String(id)); } catch { /* ignore */ }
+    setView({ type: 'today' });
+  }
+
   const refreshLookups = useCallback(() => {
+    if (!activeWorkspaceId) return;
     api.listProjects().then(setProjects).catch(() => {});
     api.listLabels().then(setLabels).catch(() => {});
     api.listAssignees().then(setAssignees).catch(() => {});
     api.listStatuses().then(setStatuses).catch(() => {});
     api.listPriorities().then(setPriorities).catch(() => {});
-  }, []);
+  }, [activeWorkspaceId]);
 
   useEffect(() => {
-    if (user) refreshLookups();
-  }, [user, refreshLookups]);
+    if (user && activeWorkspaceId) refreshLookups();
+  }, [user, activeWorkspaceId, refreshLookups]);
 
   const loadTasks = useCallback(() => {
-    if (!user || view.type === 'settings') return;
+    if (!user || !activeWorkspaceId || view.type === 'settings' || view.type === 'admin') return;
     setLoadingTasks(true);
     const params = {};
     if (view.type === 'today') {
@@ -59,14 +86,21 @@ export default function App() {
       params.label = view.name;
     }
     api.listTasks(params).then(setTasks).catch(() => {}).finally(() => setLoadingTasks(false));
-  }, [user, view]);
+  }, [user, activeWorkspaceId, view]);
 
   useEffect(() => {
     loadTasks();
   }, [loadTasks]);
 
   if (!authChecked) return <div className="boot-screen">Loading…</div>;
-  if (!user) return <Login onLoggedIn={setUser} />;
+  if (!user) {
+    return authScreen === 'register'
+      ? <Register onRegistered={applyAuthResult} onSwitchToLogin={() => setAuthScreen('login')} />
+      : <Login onLoggedIn={applyAuthResult} onSwitchToRegister={() => setAuthScreen('register')} />;
+  }
+  if (!activeWorkspaceId) {
+    return <div className="boot-screen">No workspace yet — this shouldn't normally happen. Try logging out and back in.</div>;
+  }
 
   const currentProject = view.type === 'project' ? projects.find((p) => p.id === view.id) : null;
 
@@ -76,6 +110,7 @@ export default function App() {
     inbox: '📥 Inbox',
     all: '🗂️ All tasks',
     settings: '⚙️ Settings',
+    admin: '🛡️ Admin',
   }[view.type] || (view.type === 'project' ? currentProject?.name : `#${view.name}`);
 
   async function handleCreateTask(fields) {
@@ -83,8 +118,6 @@ export default function App() {
     if (view.type === 'project') defaults.project_id = view.id;
     if (view.type === 'today') defaults.due_date = todayISO();
     if (view.type === 'label') defaults.labels = [view.name];
-    // Drop undefined keys so a smart default (e.g. today's due date) isn't
-    // clobbered by a field the caller left unset.
     const cleanFields = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
     await api.createTask({ ...defaults, ...cleanFields });
     loadTasks();
@@ -109,16 +142,36 @@ export default function App() {
     loadTasks();
   }
 
+  async function handleCreateWorkspace(name) {
+    const created = await api.createWorkspace(name);
+    const fresh = await api.me();
+    setWorkspaces(fresh.workspaces);
+    switchWorkspace(created.id);
+  }
+
+  function handleLogout() {
+    api.logout().then(() => {
+      setUser(null);
+      setWorkspaces([]);
+      switchWorkspace(null);
+    });
+  }
+
   return (
     <div className="app-shell">
       <Sidebar
+        user={user}
+        workspaces={workspaces}
+        activeWorkspaceId={activeWorkspaceId}
+        onSwitchWorkspace={switchWorkspace}
+        onCreateWorkspace={handleCreateWorkspace}
         projects={projects}
         labels={labels}
         view={view}
         onSelectView={(v) => { setView(v); setSidebarOpen(false); }}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        onLogout={() => api.logout().then(() => setUser(null))}
+        onLogout={handleLogout}
         onProjectsChanged={refreshLookups}
       />
 
@@ -147,7 +200,14 @@ export default function App() {
             labels={labels}
             assignees={assignees}
             projects={projects}
+            workspaceId={activeWorkspaceId}
+            currentUserId={user.id}
             onChange={refreshLookups}
+          />
+        ) : view.type === 'admin' ? (
+          <Admin
+            currentUserId={user.id}
+            onOpenWorkspace={(id) => { switchWorkspace(id); setView({ type: 'today' }); }}
           />
         ) : (
           <>

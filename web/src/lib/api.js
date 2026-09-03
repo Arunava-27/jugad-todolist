@@ -1,9 +1,18 @@
 const BASE = '/api';
 
+let activeWorkspaceId = null;
+export function setActiveWorkspaceId(id) {
+  activeWorkspaceId = id || null;
+}
+
 async function request(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (activeWorkspaceId && !('X-Workspace-Id' in headers)) {
+    headers['X-Workspace-Id'] = String(activeWorkspaceId);
+  }
   const res = await fetch(BASE + path, {
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    headers,
     ...options,
   });
   if (res.status === 401) {
@@ -55,8 +64,22 @@ async function upload(path, file) {
 
 export const api = {
   me: () => request('/auth/me'),
-  login: (username, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  register: (email, name, password, workspaceName) =>
+    request('/auth/register', { method: 'POST', body: JSON.stringify({ email, name, password, workspaceName }) }),
+  login: (email, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   logout: () => request('/auth/logout', { method: 'POST' }),
+
+  listWorkspaces: () => request('/workspaces'),
+  createWorkspace: (name) => request('/workspaces', { method: 'POST', body: JSON.stringify({ name }) }),
+  updateWorkspace: (id, data) => request(`/workspaces/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteWorkspace: (id) => request(`/workspaces/${id}`, { method: 'DELETE' }),
+  listWorkspaceMembers: (id) => request(`/workspaces/${id}/members`),
+  addWorkspaceMember: (id, email) => request(`/workspaces/${id}/members`, { method: 'POST', body: JSON.stringify({ email }) }),
+  removeWorkspaceMember: (id, userId) => request(`/workspaces/${id}/members/${userId}`, { method: 'DELETE' }),
+
+  adminListUsers: () => request('/admin/users'),
+  adminUpdateUser: (id, data) => request(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  adminListWorkspaces: () => request('/admin/workspaces'),
 
   listProjects: () => request('/projects'),
   createProject: (data) => request('/projects', { method: 'POST', body: JSON.stringify(data) }),

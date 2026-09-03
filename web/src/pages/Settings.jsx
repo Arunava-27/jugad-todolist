@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { api } from '../lib/api.js';
 import SettingsList from '../components/SettingsList.jsx';
+import MembersPanel from '../components/MembersPanel.jsx';
 import { ACCENT_PRESETS, getTheme, getAccent, setTheme, setAccent } from '../lib/theme.js';
 
-const TABS = ['Appearance', 'Workflow', 'Labels', 'People', 'Projects'];
+const TABS = ['Appearance', 'Workflow', 'Labels', 'People', 'Members', 'Projects'];
 
-export default function Settings({ statuses, priorities, labels, assignees, projects, onChange }) {
+export default function Settings({ statuses, priorities, labels, assignees, projects, workspaceId, currentUserId, onChange }) {
   const [tab, setTab] = useState('Appearance');
   const [theme, setThemeState] = useState(getTheme());
   const [accent, setAccentState] = useState(getAccent());
@@ -132,6 +133,14 @@ export default function Settings({ statuses, priorities, labels, assignees, proj
                 onUpdate={(id, patch) => api.updateAssignee(id, patch).then(onChange)}
                 onDelete={(id) => api.deleteAssignee(id).then(onChange)}
               />
+            </>
+          )}
+
+          {tab === 'Members' && (
+            <>
+              <h3>Members</h3>
+              <p className="settings-hint">Who has access to this workspace's projects and tasks.</p>
+              <MembersPanel workspaceId={workspaceId} currentUserId={currentUserId} />
             </>
           )}
 

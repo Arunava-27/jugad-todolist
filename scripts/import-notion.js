@@ -1,44 +1,52 @@
 // One-time import: reads scripts/notion-export.json (a snapshot pulled from the
-// Notion "⚙️ Dev Tasks" + "📁 Projects" databases) and seeds the SQLite DB.
-// Safe to re-run: matches existing rows by notion_url and updates them instead
-// of creating duplicates.
+// Notion "⚙️ Dev Tasks" + "📁 Projects" databases) and seeds it into the admin's
+// workspace. Safe to re-run: matches existing rows by notion_url and updates
+// them instead of creating duplicates.
 //
-// Usage:  node scripts/import-notion.js   (or  npm run import-notion  from server/)
+// Requires ADMIN_EMAIL + ADMIN_PASSWORD_HASH to already be set in the
+// environment (same as the server) — importing db/index.js runs the same
+// admin + bootstrap-workspace seeding the server does on boot, and this
+// script imports everything into that workspace.
+//
+// Usage:  node scripts/import-notion.js   (or  npm run import-notion  from repo root)
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import Database from 'better-sqlite3';
+import db from '../server/src/db/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = process.env.DATA_DIR || path.resolve(__dirname, '../data');
 const EXPORT_PATH = path.resolve(__dirname, 'notion-export.json');
-const SCHEMA_PATH = path.resolve(__dirname, '../server/src/db/schema.sql');
 
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-const db = new Database(path.join(DATA_DIR, 'app.db'));
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-db.exec(fs.readFileSync(SCHEMA_PATH, 'utf8'));
+const workspace = db.prepare('SELECT id, name FROM workspaces ORDER BY id LIMIT 1').get();
+if (!workspace) {
+  console.error(
+    'No workspace found. Set ADMIN_EMAIL, ADMIN_NAME and ADMIN_PASSWORD_HASH in the environment ' +
+    '(same as running the server) before running this import — that seeds the admin account and ' +
+    'its default workspace, which this script imports the Notion data into.'
+  );
+  process.exit(1);
+}
+const workspaceId = workspace.id;
 
 const data = JSON.parse(fs.readFileSync(EXPORT_PATH, 'utf8'));
 
 function getOrCreateLabel(name) {
-  const existing = db.prepare('SELECT * FROM labels WHERE name = ?').get(name);
+  const existing = db.prepare('SELECT * FROM labels WHERE workspace_id = ? AND name = ?').get(workspaceId, name);
   if (existing) return existing;
-  const info = db.prepare('INSERT INTO labels (name) VALUES (?)').run(name);
+  const info = db.prepare('INSERT INTO labels (workspace_id, name) VALUES (?, ?)').run(workspaceId, name);
   return db.prepare('SELECT * FROM labels WHERE id = ?').get(info.lastInsertRowid);
 }
 
 function getOrCreateAssignee(name) {
-  const existing = db.prepare('SELECT * FROM assignees WHERE name = ?').get(name);
+  const existing = db.prepare('SELECT * FROM assignees WHERE workspace_id = ? AND name = ?').get(workspaceId, name);
   if (existing) return existing;
-  const info = db.prepare('INSERT INTO assignees (name) VALUES (?)').run(name);
+  const info = db.prepare('INSERT INTO assignees (workspace_id, name) VALUES (?, ?)').run(workspaceId, name);
   return db.prepare('SELECT * FROM assignees WHERE id = ?').get(info.lastInsertRowid);
 }
 
 const upsertProject = db.transaction((p) => {
-  const existing = db.prepare('SELECT * FROM projects WHERE notion_url = ?').get(p.notion_url);
+  const existing = db.prepare('SELECT * FROM projects WHERE workspace_id = ? AND notion_url = ?').get(workspaceId, p.notion_url);
   if (existing) {
     db.prepare(
       `UPDATE projects SET name=?, status=?, platform=?, description=?, version=?, build_number=?,
@@ -47,9 +55,9 @@ const upsertProject = db.transaction((p) => {
     return existing.id;
   }
   const info = db.prepare(
-    `INSERT INTO projects (notion_url, name, status, platform, description, version, build_number, start_date, target_date)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(p.notion_url, p.name, p.status, p.platform, p.description, p.version, p.build_number, p.start_date, p.target_date);
+    `INSERT INTO projects (workspace_id, notion_url, name, status, platform, description, version, build_number, start_date, target_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(workspaceId, p.notion_url, p.name, p.status, p.platform, p.description, p.version, p.build_number, p.start_date, p.target_date);
   return info.lastInsertRowid;
 });
 
@@ -57,7 +65,7 @@ const upsertTask = db.transaction((t, projectIdByUrl) => {
   const projectId = t.project_url ? projectIdByUrl.get(t.project_url) || null : null;
   const isCompleted = t.status === 'Done' ? 1 : 0;
 
-  const existing = db.prepare('SELECT * FROM tasks WHERE notion_url = ?').get(t.notion_url);
+  const existing = db.prepare('SELECT * FROM tasks WHERE workspace_id = ? AND notion_url = ?').get(workspaceId, t.notion_url);
   let taskId;
   if (existing) {
     db.prepare(
@@ -72,12 +80,12 @@ const upsertTask = db.transaction((t, projectIdByUrl) => {
     taskId = existing.id;
   } else {
     const info = db.prepare(
-      `INSERT INTO tasks (project_id, notion_url, notion_task_number, title, status, priority, platform,
+      `INSERT INTO tasks (workspace_id, project_id, notion_url, notion_task_number, title, status, priority, platform,
          due_date, estimate_hours, version, build_number, link, is_completed, completed_at,
          sort_order, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
-      projectId, t.notion_url, t.task_number, t.title, t.status, t.priority, t.platform,
+      workspaceId, projectId, t.notion_url, t.task_number, t.title, t.status, t.priority, t.platform,
       t.due_date, t.estimate_hours, t.version, t.build_number, t.link, isCompleted,
       isCompleted ? t.created : null, t.task_number, t.created, t.created
     );
@@ -110,13 +118,13 @@ for (const t of data.tasks) {
 }
 
 const totals = {
-  projects: db.prepare('SELECT COUNT(*) c FROM projects').get().c,
-  tasks: db.prepare('SELECT COUNT(*) c FROM tasks').get().c,
-  labels: db.prepare('SELECT COUNT(*) c FROM labels').get().c,
-  assignees: db.prepare('SELECT COUNT(*) c FROM assignees').get().c,
-  done: db.prepare("SELECT COUNT(*) c FROM tasks WHERE status = 'Done'").get().c,
+  projects: db.prepare('SELECT COUNT(*) c FROM projects WHERE workspace_id = ?').get(workspaceId).c,
+  tasks: db.prepare('SELECT COUNT(*) c FROM tasks WHERE workspace_id = ?').get(workspaceId).c,
+  labels: db.prepare('SELECT COUNT(*) c FROM labels WHERE workspace_id = ?').get(workspaceId).c,
+  assignees: db.prepare('SELECT COUNT(*) c FROM assignees WHERE workspace_id = ?').get(workspaceId).c,
+  done: db.prepare("SELECT COUNT(*) c FROM tasks WHERE workspace_id = ? AND status = 'Done'").get(workspaceId).c,
 };
 
 console.log(`Imported ${data.projects.length} projects and ${taskCount} tasks from ${EXPORT_PATH}`);
+console.log(`Into workspace: "${workspace.name}" (id ${workspaceId})`);
 console.log('DB totals:', totals);
-console.log(`SQLite file: ${path.join(DATA_DIR, 'app.db')}`);

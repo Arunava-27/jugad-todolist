@@ -1,13 +1,18 @@
 # Jugad Todolist
 
 A self-hosted, Todoist-style task manager — no per-vendor storage/usage caps, because it runs on
-your own server. Includes a one-time backup/import of the Notion "⚙️ Dev Tasks" + "📁 Projects"
-databases.
+your own server. Multi-user with real accounts, an admin account seeded from env vars, and
+shared/collaborative workspaces. Includes a one-time backup/import of the Notion "⚙️ Dev Tasks" +
+"📁 Projects" databases.
 
 - **Backend:** Node.js + Express + SQLite (`better-sqlite3`) — `server/`
 - **Frontend:** React + Vite SPA — `web/`
 - **Data:** single SQLite file at `data/app.db`, uploaded task images at `data/uploads/`
-- **Auth:** one hardcoded admin user (env vars), session cookie
+- **Accounts:** open registration (email + password) plus one admin account seeded from env vars
+  on first boot. Admin can manage all users and open any workspace; see `web/src/pages/Admin.jsx`
+- **Workspaces:** shared/collaborative — projects, tasks, labels, people, and the status/priority
+  workflow are all scoped per workspace. Every user gets a workspace on registration and can create
+  more or be added to teammates' workspaces (Settings → Members, by email)
 - **Customization:** Settings screen — theme/accent color, editable statuses & priorities
   (drag to reorder, recolor, mark done/default), labels, people, and projects, all with colors
 - **Hosting:** Docker Compose (`app` + Caddy for automatic HTTPS) — see [DEPLOY.md](DEPLOY.md)
@@ -18,10 +23,10 @@ Requires Node 20+.
 
 ```bash
 npm install                 # installs server + web workspaces
-npm run import-notion       # one-time: seeds data/app.db from scripts/notion-export.json
 ```
 
-Create `server/.env`-equivalent env vars for local dev (or just export them in your shell):
+Set env vars for local dev (needed every time you start the server — nothing is persisted outside
+these vars plus the SQLite file):
 
 ```bash
 node scripts/hash-password.js "yourpassword"   # copy the printed hash
@@ -29,10 +34,19 @@ node scripts/hash-password.js "yourpassword"   # copy the printed hash
 
 ```bash
 # Windows PowerShell
-$env:ADMIN_USERNAME="arunava"
+$env:ADMIN_EMAIL="you@example.com"
+$env:ADMIN_NAME="Your Name"
 $env:ADMIN_PASSWORD_HASH="<hash from above>"
 $env:SESSION_SECRET="dev-secret"
 npm run dev:server     # http://localhost:3000 (API)
+```
+
+The first time the server boots with those vars set, it seeds the admin account and a default
+workspace for them. Import the Notion backup into that workspace once the server has booted at
+least once with admin env vars set:
+
+```bash
+npm run import-notion       # seeds data/app.db from scripts/notion-export.json into the admin's workspace
 ```
 
 In a second terminal:
@@ -41,7 +55,9 @@ In a second terminal:
 npm run dev:web         # http://localhost:5173 (UI, proxies /api to :3000)
 ```
 
-Open http://localhost:5173, log in with the username/password you hashed above.
+Open http://localhost:5173 and either log in as the seeded admin, or use **Register** to create a
+regular account (anyone with the URL can register — see [DEPLOY.md](DEPLOY.md) if you want to lock
+that down later).
 
 ## Production build (what Docker runs)
 
@@ -57,4 +73,5 @@ See [DEPLOY.md](DEPLOY.md) for the full step-by-step (droplet, DuckDNS domain, H
 ## Re-running the Notion import
 
 `scripts/notion-export.json` is a point-in-time snapshot (this was a one-time backup, not live sync).
-Re-running `npm run import-notion` is safe — it upserts by Notion URL, so it won't duplicate rows.
+Re-running `npm run import-notion` is safe — it upserts by Notion URL within the admin's workspace,
+so it won't duplicate rows.

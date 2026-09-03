@@ -8,7 +8,12 @@ const SMART_VIEWS = [
   { type: 'all', icon: '🗂️', label: 'All tasks' },
 ];
 
-export default function Sidebar({ projects, labels, view, onSelectView, open, onClose, onLogout, onProjectsChanged }) {
+const NEW_WORKSPACE = '__new__';
+
+export default function Sidebar({
+  user, workspaces, activeWorkspaceId, onSwitchWorkspace, onCreateWorkspace,
+  projects, labels, view, onSelectView, open, onClose, onLogout, onProjectsChanged,
+}) {
   const [addingProject, setAddingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
 
@@ -21,6 +26,18 @@ export default function Sidebar({ projects, labels, view, onSelectView, open, on
     onProjectsChanged();
   }
 
+  function handleWorkspaceSelect(e) {
+    const val = e.target.value;
+    if (val === NEW_WORKSPACE) {
+      const name = prompt('Name for the new workspace:');
+      if (name && name.trim()) onCreateWorkspace(name.trim());
+      return;
+    }
+    onSwitchWorkspace(Number(val));
+  }
+
+  const activeInList = workspaces.some((w) => w.id === activeWorkspaceId);
+
   return (
     <>
       {open && <div className="sidebar-scrim" onClick={onClose} />}
@@ -28,6 +45,14 @@ export default function Sidebar({ projects, labels, view, onSelectView, open, on
         <div className="sidebar-brand">
           <span className="brand-mark">✅</span> Jugad Todolist
         </div>
+
+        <select className="workspace-switcher" value={activeInList ? activeWorkspaceId : ''} onChange={handleWorkspaceSelect}>
+          {!activeInList && <option value="">Admin view (workspace #{activeWorkspaceId})</option>}
+          {workspaces.map((w) => (
+            <option key={w.id} value={w.id}>{w.name}</option>
+          ))}
+          <option value={NEW_WORKSPACE}>＋ New workspace…</option>
+        </select>
 
         <nav className="sidebar-nav">
           {SMART_VIEWS.map((v) => (
@@ -89,6 +114,13 @@ export default function Sidebar({ projects, labels, view, onSelectView, open, on
           className={`nav-item ${view.type === 'settings' ? 'active' : ''}`}
           onClick={() => onSelectView({ type: 'settings' })}
         >⚙️ Settings</button>
+        {user.role === 'admin' && (
+          <button
+            className={`nav-item ${view.type === 'admin' ? 'active' : ''}`}
+            onClick={() => onSelectView({ type: 'admin' })}
+          >🛡️ Admin</button>
+        )}
+        <div className="sidebar-user">{user.name}</div>
         <button className="nav-item logout" onClick={onLogout}>⎋ Log out</button>
       </aside>
     </>

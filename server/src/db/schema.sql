@@ -1,7 +1,33 @@
 -- Jugad Todolist schema
 
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member', -- 'admin' | 'member'
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE TABLE IF NOT EXISTS workspaces (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE TABLE IF NOT EXISTS workspace_members (
+  workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'member', -- 'owner' | 'member' (within this workspace)
+  joined_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  PRIMARY KEY (workspace_id, user_id)
+);
+
 CREATE TABLE IF NOT EXISTS projects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
   notion_url TEXT,
   name TEXT NOT NULL,
   status TEXT,
@@ -18,6 +44,7 @@ CREATE TABLE IF NOT EXISTS projects (
 
 CREATE TABLE IF NOT EXISTS tasks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
   project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
   notion_url TEXT,
   notion_task_number INTEGER,
@@ -40,8 +67,10 @@ CREATE TABLE IF NOT EXISTS tasks (
 
 CREATE TABLE IF NOT EXISTS labels (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
-  color TEXT DEFAULT '#94a3b8'
+  workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  color TEXT DEFAULT '#94a3b8',
+  UNIQUE (workspace_id, name)
 );
 
 CREATE TABLE IF NOT EXISTS task_labels (
@@ -50,10 +79,14 @@ CREATE TABLE IF NOT EXISTS task_labels (
   PRIMARY KEY (task_id, label_id)
 );
 
+-- Free-text assignee tags (kept separate from `users` — a task can be tagged
+-- to someone who isn't a registered account yet, e.g. an external collaborator).
 CREATE TABLE IF NOT EXISTS assignees (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
-  color TEXT DEFAULT '#6366f1'
+  workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  color TEXT DEFAULT '#6366f1',
+  UNIQUE (workspace_id, name)
 );
 
 CREATE TABLE IF NOT EXISTS task_assignees (
@@ -63,21 +96,25 @@ CREATE TABLE IF NOT EXISTS task_assignees (
 );
 
 -- Customizable workflow: the exact set of statuses/priorities is user-editable
--- (rename, recolor, reorder, add, remove) via Settings, instead of a fixed list.
+-- (rename, recolor, reorder, add, remove) via Settings, per workspace.
 CREATE TABLE IF NOT EXISTS statuses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
+  workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
   color TEXT DEFAULT '#94a3b8',
   sort_order REAL NOT NULL DEFAULT 0,
   is_done INTEGER NOT NULL DEFAULT 0,
-  is_default INTEGER NOT NULL DEFAULT 0
+  is_default INTEGER NOT NULL DEFAULT 0,
+  UNIQUE (workspace_id, name)
 );
 
 CREATE TABLE IF NOT EXISTS priorities (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
+  workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
   color TEXT DEFAULT '#94a3b8',
-  sort_order REAL NOT NULL DEFAULT 0
+  sort_order REAL NOT NULL DEFAULT 0,
+  UNIQUE (workspace_id, name)
 );
 
 CREATE TABLE IF NOT EXISTS attachments (
@@ -90,7 +127,14 @@ CREATE TABLE IF NOT EXISTS attachments (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
+CREATE INDEX IF NOT EXISTS idx_workspace_members_user ON workspace_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
 CREATE INDEX IF NOT EXISTS idx_attachments_task ON attachments(task_id);
+
+-- NOTE: indexes on the workspace_id column of projects/tasks/labels/assignees/
+-- statuses/priorities are created in db/index.js, AFTER the migrations that
+-- add that column to pre-existing (pre-workspace) databases — creating them
+-- here would fail on such a database, since the column doesn't exist until
+-- those migrations run.

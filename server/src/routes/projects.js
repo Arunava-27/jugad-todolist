@@ -6,12 +6,12 @@ const router = Router();
 router.get('/', (req, res) => {
   const includeArchived = req.query.includeArchived === '1';
   const rows = db.prepare(
-    `SELECT * FROM projects ${includeArchived ? '' : 'WHERE is_archived = 0'} ORDER BY name COLLATE NOCASE`
-  ).all();
+    `SELECT * FROM projects WHERE workspace_id = ? ${includeArchived ? '' : 'AND is_archived = 0'} ORDER BY name COLLATE NOCASE`
+  ).all(req.workspaceId);
   const counts = db.prepare(
     `SELECT project_id, COUNT(*) as total, SUM(is_completed) as completed
-     FROM tasks GROUP BY project_id`
-  ).all();
+     FROM tasks WHERE workspace_id = ? GROUP BY project_id`
+  ).all(req.workspaceId);
   const countMap = Object.fromEntries(counts.map((c) => [c.project_id, c]));
   res.json(rows.map((p) => ({
     ...p,
@@ -25,11 +25,11 @@ router.post('/', (req, res) => {
   const { name, status, platform, description, version, build_number, start_date, target_date, color } = req.body || {};
   if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
   const stmt = db.prepare(
-    `INSERT INTO projects (name, status, platform, description, version, build_number, start_date, target_date, color)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO projects (workspace_id, name, status, platform, description, version, build_number, start_date, target_date, color)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const info = stmt.run(
-    name.trim(), status || null, platform || null, description || null,
+    req.workspaceId, name.trim(), status || null, platform || null, description || null,
     version || null, build_number || null, start_date || null, target_date || null,
     color || '#6366f1'
   );
@@ -39,7 +39,7 @@ router.post('/', (req, res) => {
 
 router.patch('/:id', (req, res) => {
   const id = Number(req.params.id);
-  const existing = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+  const existing = db.prepare('SELECT * FROM projects WHERE id = ? AND workspace_id = ?').get(id, req.workspaceId);
   if (!existing) return res.status(404).json({ error: 'Project not found' });
 
   const fields = ['name', 'status', 'platform', 'description', 'version', 'build_number', 'start_date', 'target_date', 'color', 'is_archived'];
@@ -59,7 +59,7 @@ router.patch('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const id = Number(req.params.id);
-  const existing = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+  const existing = db.prepare('SELECT * FROM projects WHERE id = ? AND workspace_id = ?').get(id, req.workspaceId);
   if (!existing) return res.status(404).json({ error: 'Project not found' });
   db.prepare('DELETE FROM projects WHERE id = ?').run(id); // tasks.project_id -> NULL via FK
   res.json({ ok: true });
