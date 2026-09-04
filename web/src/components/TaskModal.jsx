@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../lib/api.js';
 import { confirmDialog } from '../lib/dialogs.js';
 import SubtaskList from './SubtaskList.jsx';
+import Icon from './Icon.jsx';
 
 export default function TaskModal({ task, projects, statuses, priorities, onClose, onUpdate, onDelete }) {
   const [attachments, setAttachments] = useState(task.attachments || []);
@@ -100,7 +101,7 @@ export default function TaskModal({ task, projects, statuses, priorities, onClos
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           {task.notion_task_number && <span className="task-num">#{task.notion_task_number}</span>}
-          <button className="icon-btn" onClick={onClose}>✕</button>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={16} /></button>
         </div>
 
         <input
@@ -152,7 +153,7 @@ export default function TaskModal({ task, projects, statuses, priorities, onClos
           </label>
           <label>
             Platform
-            <input value={form.platform} onChange={(e) => set('platform', e.target.value)} placeholder="e.g. 🌐 Web App" />
+            <input value={form.platform} onChange={(e) => set('platform', e.target.value)} placeholder="e.g. Web App" />
           </label>
           <label>
             Estimate (hrs)
@@ -194,11 +195,11 @@ export default function TaskModal({ task, projects, statuses, priorities, onClos
                   className="attachment-remove"
                   onClick={() => removeAttachment(a.id)}
                   title={`Remove ${a.original_name}`}
-                >✕</button>
+                ><Icon name="x" size={10} /></button>
               </div>
             ))}
             <label className="attachment-add">
-              {uploading ? '…' : '+'}
+              {uploading ? '…' : <Icon name="plus" size={18} />}
               <input type="file" accept="image/*" hidden onChange={handleFileChange} disabled={uploading} />
             </label>
           </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatDueDate, colorFor } from '../lib/format.js';
+import Icon from './Icon.jsx';
 
 export default function BoardView({ tasks, statuses, priorities, loading, onUpdateTask, onOpenTask, onReorderStatuses }) {
   const [dragOverStatus, setDragOverStatus] = useState(null);
@@ -46,6 +47,7 @@ export default function BoardView({ tasks, statuses, priorities, loading, onUpda
         <div
           key={col.status}
           className={`board-column ${dragOverStatus === col.status ? 'drag-over' : ''}`}
+          style={{ '--column-accent': col.color }}
           onDragOver={(e) => { e.preventDefault(); setDragOverStatus(col.status); }}
           onDragLeave={() => setDragOverStatus(null)}
           onDrop={(e) => handleDrop(e, col.status)}
@@ -57,14 +59,15 @@ export default function BoardView({ tasks, statuses, priorities, loading, onUpda
             onDragEnd={() => setDragColumnStatus(null)}
             title="Drag to reorder columns"
           >
-            <span className="drag-handle">⠿</span>
-            <span className="dot" style={{ background: col.color }} /> {col.status} <span className="nav-count">{col.tasks.length}</span>
+            <span className="drag-handle"><Icon name="grip" size={14} /></span>
+            {col.status} <span className="nav-count">{col.tasks.length}</span>
           </div>
           <div className="board-column-body">
             {col.tasks.map((task) => (
               <div
                 key={task.id}
                 className="board-card"
+                style={{ '--priority-accent': task.priority ? colorFor(priorities, task.priority) : undefined }}
                 draggable
                 onDragStart={(e) => e.dataTransfer.setData('text/task-id', String(task.id))}
                 onClick={() => onOpenTask(task)}
@@ -72,13 +75,13 @@ export default function BoardView({ tasks, statuses, priorities, loading, onUpda
                 <div className="board-card-title">{task.title}</div>
                 <div className="task-meta">
                   {task.priority && (
-                    <span className="chip" style={{ background: colorFor(priorities, task.priority) + '22', color: colorFor(priorities, task.priority) }}>
+                    <span className="chip" style={{ background: colorFor(priorities, task.priority) + '22', color: colorFor(priorities, task.priority), borderColor: 'transparent' }}>
                       {task.priority.replace(/^[^\s]+\s/, '')}
                     </span>
                   )}
                   {task.due_date && <span className="chip due-chip">{formatDueDate(task.due_date)}</span>}
                   {task.subtask_count > 0 && (
-                    <span className="chip">☑ {task.subtask_completed_count}/{task.subtask_count}</span>
+                    <span className="chip"><Icon name="check" size={11} /> {task.subtask_completed_count}/{task.subtask_count}</span>
                   )}
                 </div>
               </div>

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { parseQuickAdd } from '../lib/quickAddParser.js';
 import { formatDueDate } from '../lib/format.js';
+import Icon from './Icon.jsx';
 
 export default function QuickAdd({ onCreate, projects, priorities }) {
   const [open, setOpen] = useState(false);
@@ -42,7 +43,7 @@ export default function QuickAdd({ onCreate, projects, priorities }) {
 
   if (!open) {
     return (
-      <button className="quick-add-trigger" onClick={() => setOpen(true)}>＋ Add task</button>
+      <button className="quick-add-trigger" onClick={() => setOpen(true)}><Icon name="plus" size={14} /> Add task</button>
     );
   }
 
@@ -59,10 +60,12 @@ export default function QuickAdd({ onCreate, projects, priorities }) {
       />
       {showPreview && (
         <div className="quick-add-preview">
-          {parsed.due_date && <span className="chip due-chip">📅 {formatDueDate(parsed.due_date)}</span>}
-          {parsed.priority && <span className="chip">🚩 {parsed.priority}</span>}
+          {parsed.due_date && <span className="chip due-chip"><Icon name="calendar" size={11} /> {formatDueDate(parsed.due_date)}</span>}
+          {parsed.priority && <span className="chip"><Icon name="flag" size={11} /> {parsed.priority}</span>}
           {parsed.project && (
-            <span className="chip">{parsed.project_id ? '📁' : '❓'} {parsed.project}{!parsed.project_id && ' (no match)'}</span>
+            <span className="chip">
+              <Icon name={parsed.project_id ? 'folder' : 'help'} size={11} /> {parsed.project}{!parsed.project_id && ' (no match)'}
+            </span>
           )}
           {parsed.labels.map((l) => <span key={l} className="chip label-chip">#{l}</span>)}
         </div>

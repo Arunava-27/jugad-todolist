@@ -3,7 +3,7 @@
   "short_name": "Jugad",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8f9fb",
-  "theme_color": "#6366f1",
+  "background_color": "#E9EEF2",
+  "theme_color": "#151A24",
   "icons": []
 }

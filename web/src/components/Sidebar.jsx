@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api.js';
 import { promptDialog } from '../lib/dialogs.js';
+import Icon, { Logo } from './Icon.jsx';
 
 const SMART_VIEWS = [
-  { type: 'today', icon: '📅', label: 'Today' },
-  { type: 'upcoming', icon: '🔭', label: 'Upcoming' },
-  { type: 'inbox', icon: '📥', label: 'Inbox' },
-  { type: 'all', icon: '🗂️', label: 'All tasks' },
+  { type: 'today', icon: 'calendar', label: 'Today' },
+  { type: 'upcoming', icon: 'compass', label: 'Upcoming' },
+  { type: 'inbox', icon: 'inbox', label: 'Inbox' },
+  { type: 'all', icon: 'grid', label: 'All tasks' },
 ];
 
 const NEW_WORKSPACE = '__new__';
@@ -85,7 +86,7 @@ export default function Sidebar({
           className={`star-toggle ${p.is_favorite ? 'active' : ''}`}
           onClick={(e) => toggleFavorite(e, p)}
           title={p.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
-        >{p.is_favorite ? '★' : '☆'}</span>
+        ><Icon name="star" size={13} filled={p.is_favorite} /></span>
       </button>
     );
   }
@@ -98,7 +99,7 @@ export default function Sidebar({
       {open && <div className="sidebar-scrim" onClick={onClose} />}
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <span className="brand-mark">✅</span> Jugad Todolist
+          <Logo /> Jugad Todolist
         </div>
 
         <select className="workspace-switcher" value={activeInList ? activeWorkspaceId : ''} onChange={handleWorkspaceSelect}>
@@ -106,12 +107,13 @@ export default function Sidebar({
           {workspaces.map((w) => (
             <option key={w.id} value={w.id}>{w.name}</option>
           ))}
-          <option value={NEW_WORKSPACE}>＋ New workspace…</option>
+          <option value={NEW_WORKSPACE}>+ New workspace…</option>
         </select>
 
         <form className="sidebar-search" onSubmit={submitSearch}>
+          <Icon name="search" size={14} />
           <input
-            placeholder="🔍 Search tasks…"
+            placeholder="Search tasks…"
             value={searchDraft}
             onChange={(e) => handleSearchChange(e.target.value)}
           />
@@ -124,7 +126,7 @@ export default function Sidebar({
               className={`nav-item ${view.type === v.type ? 'active' : ''}`}
               onClick={() => onSelectView({ type: v.type })}
             >
-              <span className="nav-icon">{v.icon}</span> {v.label}
+              <span className="nav-icon"><Icon name={v.icon} size={16} /></span> {v.label}
             </button>
           ))}
         </nav>
@@ -139,7 +141,7 @@ export default function Sidebar({
         <div className="sidebar-section">
           <div className="sidebar-section-title">
             Projects
-            <button className="icon-btn" onClick={() => setAddingProject((s) => !s)} title="Add project">＋</button>
+            <button className="icon-btn" onClick={() => setAddingProject((s) => !s)} title="Add project"><Icon name="plus" size={14} /></button>
           </div>
           {addingProject && (
             <form onSubmit={submitNewProject} className="inline-add-form">
@@ -173,15 +175,15 @@ export default function Sidebar({
         <button
           className={`nav-item ${view.type === 'settings' ? 'active' : ''}`}
           onClick={() => onSelectView({ type: 'settings' })}
-        >⚙️ Settings</button>
+        ><span className="nav-icon"><Icon name="gear" size={16} /></span> Settings</button>
         {user.role === 'admin' && (
           <button
             className={`nav-item ${view.type === 'admin' ? 'active' : ''}`}
             onClick={() => onSelectView({ type: 'admin' })}
-          >🛡️ Admin</button>
+          ><span className="nav-icon"><Icon name="shield" size={16} /></span> Admin</button>
         )}
         <div className="sidebar-user">{user.name}</div>
-        <button className="nav-item logout" onClick={onLogout}>⎋ Log out</button>
+        <button className="nav-item logout" onClick={onLogout}><span className="nav-icon"><Icon name="logout" size={16} /></span> Log out</button>
       </aside>
     </>
   );

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../lib/api.js';
 import { confirmDialog } from '../lib/dialogs.js';
 import TaskRow from './TaskRow.jsx';
+import Icon from './Icon.jsx';
 
 const NO_SECTION = '__none__';
 
@@ -84,7 +85,7 @@ export default function SectionedTaskList({
               draggable
               onDragStart={() => setDragSectionId(g.id)}
             >
-              <span className="drag-handle" title="Drag to reorder">⠿</span>
+              <span className="drag-handle" title="Drag to reorder"><Icon name="grip" size={14} /></span>
               <input
                 className="task-section-name"
                 defaultValue={g.name}
@@ -92,7 +93,7 @@ export default function SectionedTaskList({
                 onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
               />
               <span className="nav-count">{bySection.get(g.id).length}</span>
-              <button className="icon-btn danger-hover" onClick={() => deleteSection(sections.find((s) => s.id === g.id))} title="Delete section">🗑</button>
+              <button className="icon-btn danger-hover" onClick={() => deleteSection(sections.find((s) => s.id === g.id))} title="Delete section"><Icon name="trash" size={14} /></button>
             </div>
           ) : (
             sections.length > 0 && <div className="task-section-header no-section"><span className="task-section-name">No section</span></div>
@@ -130,7 +131,7 @@ export default function SectionedTaskList({
           <button type="submit" disabled={!newSectionName.trim()}>Add</button>
         </form>
       ) : (
-        <button className="quick-add-trigger" onClick={() => setAddingSection(true)}>＋ Add section</button>
+        <button className="quick-add-trigger" onClick={() => setAddingSection(true)}><Icon name="plus" size={14} /> Add section</button>
       )}
     </div>
   );

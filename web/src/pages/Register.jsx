@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../lib/api.js';
 import PasswordInput from '../components/PasswordInput.jsx';
+import { Logo } from '../components/Icon.jsx';
 
 export default function Register({ onRegistered, onSwitchToLogin }) {
   const [name, setName] = useState('');
@@ -27,7 +28,7 @@ export default function Register({ onRegistered, onSwitchToLogin }) {
   return (
     <div className="login-screen">
       <form className="login-card" onSubmit={submit}>
-        <h1>Jugad Todolist</h1>
+        <div className="login-brand"><Logo size={26} /><h1>Jugad Todolist</h1></div>
         <p className="login-sub">Create your account</p>
         <label>
           Name

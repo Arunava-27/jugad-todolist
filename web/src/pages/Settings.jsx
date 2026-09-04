@@ -64,7 +64,7 @@ export default function Settings({ statuses, priorities, labels, assignees, proj
                     value={accent}
                     onChange={(e) => chooseAccent(e.target.value)}
                     title="Custom color"
-                    style={{ width: 30, height: 30, borderRadius: '50%', border: '2px solid var(--border)', padding: 0 }}
+                    style={{ width: 28, height: 28, borderRadius: '50%', border: '2px solid var(--line)', padding: 0 }}
                   />
                 </div>
               </div>

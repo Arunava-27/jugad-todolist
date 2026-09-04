@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Icon from './Icon.jsx';
 
 export default function PasswordInput({ value, onChange, placeholder, autoFocus }) {
   const [visible, setVisible] = useState(false);
@@ -21,7 +22,7 @@ export default function PasswordInput({ value, onChange, placeholder, autoFocus 
         aria-label={visible ? 'Hide password' : 'Show password'}
         title={visible ? 'Hide password' : 'Show password'}
       >
-        {visible ? '🙈' : '👁️'}
+        <Icon name={visible ? 'eyeOff' : 'eye'} size={16} />
       </button>
     </div>
   );

@@ -11,6 +11,7 @@ import BoardView from './components/BoardView.jsx';
 import TaskModal from './components/TaskModal.jsx';
 import QuickAdd from './components/QuickAdd.jsx';
 import DialogHost from './components/DialogHost.jsx';
+import Icon from './components/Icon.jsx';
 import { todayISO } from './lib/format.js';
 
 const ACTIVE_WORKSPACE_KEY = 'jugad-active-workspace';
@@ -119,14 +120,19 @@ export default function App() {
 
   const currentProject = view.type === 'project' ? projects.find((p) => p.id === view.id) : null;
 
-  const viewTitle = {
-    today: '📅 Today',
-    upcoming: '🔭 Upcoming',
-    inbox: '📥 Inbox',
-    all: '🗂️ All tasks',
-    settings: '⚙️ Settings',
-    admin: '🛡️ Admin',
-  }[view.type] || (view.type === 'project' ? currentProject?.name : view.type === 'search' ? `🔍 “${view.q}”` : `#${view.name}`);
+  const VIEW_META = {
+    today: { icon: 'calendar', label: 'Today' },
+    upcoming: { icon: 'compass', label: 'Upcoming' },
+    inbox: { icon: 'inbox', label: 'Inbox' },
+    all: { icon: 'grid', label: 'All tasks' },
+    settings: { icon: 'gear', label: 'Settings' },
+    admin: { icon: 'shield', label: 'Admin' },
+  };
+  const viewMeta = VIEW_META[view.type] || (
+    view.type === 'project' ? { icon: null, label: currentProject?.name }
+      : view.type === 'search' ? { icon: 'search', label: `“${view.q}”` }
+        : { icon: null, label: `#${view.name}` }
+  );
 
   async function handleCreateTask(fields) {
     const defaults = {};
@@ -210,8 +216,8 @@ export default function App() {
 
       <main className="main-panel">
         <header className="main-header">
-          <button className="hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu">☰</button>
-          <h2>{viewTitle}</h2>
+          <button className="hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Icon name="menu" size={20} /></button>
+          <h2>{viewMeta.icon && <Icon name={viewMeta.icon} size={18} style={{ marginRight: 9, verticalAlign: -3 }} />}{viewMeta.label}</h2>
           {view.type === 'project' && (
             <div className="view-toggle">
               <button

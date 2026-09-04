@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api.js';
 import { confirmDialog } from '../lib/dialogs.js';
+import Icon from './Icon.jsx';
 
 export default function SubtaskList({ parentTaskId }) {
   const [subtasks, setSubtasks] = useState([]);
@@ -61,7 +62,7 @@ export default function SubtaskList({ parentTaskId }) {
           {subtasks.map((s) => (
             <li className={`subtask-row ${s.is_completed ? 'completed' : ''}`} key={s.id}>
               <button className="task-checkbox" onClick={() => toggle(s)} aria-label="Toggle complete">
-                {s.is_completed && '✓'}
+                {s.is_completed && <Icon name="check" size={12} />}
               </button>
               <input
                 className="subtask-title"
@@ -69,7 +70,7 @@ export default function SubtaskList({ parentTaskId }) {
                 onBlur={(e) => rename(s, e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
               />
-              <button className="icon-btn danger-hover" onClick={() => remove(s)} title="Delete sub-task">✕</button>
+              <button className="icon-btn danger-hover" onClick={() => remove(s)} title="Delete sub-task"><Icon name="x" size={13} /></button>
             </li>
           ))}
         </ul>

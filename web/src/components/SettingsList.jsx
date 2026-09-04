@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { alertDialog } from '../lib/dialogs.js';
+import Icon from './Icon.jsx';
 
 // Generic editable list of {id, name, color, ...} rows — used for statuses,
 // priorities, labels and people. Handles inline rename/recolor, delete with
@@ -7,7 +8,7 @@ import { alertDialog } from '../lib/dialogs.js';
 // `reorderable`) drag-to-reorder persisted via sort_order.
 export default function SettingsList({ items, onCreate, onUpdate, onDelete, onReorder, renderRowExtra, addPlaceholder = 'Add new…', reorderable = false }) {
   const [newName, setNewName] = useState('');
-  const [newColor, setNewColor] = useState('#6366f1');
+  const [newColor, setNewColor] = useState('#d9a02a');
   const [creating, setCreating] = useState(false);
   const [blocked, setBlocked] = useState(null); // { id, count, reassignTo }
   const [busyId, setBusyId] = useState(null);
@@ -91,7 +92,7 @@ export default function SettingsList({ items, onCreate, onUpdate, onDelete, onRe
               onDragLeave={() => setDragOverId((cur) => (cur === item.id ? null : cur))}
               onDrop={(e) => { if (reorderable) { e.preventDefault(); handleDrop(item.id); } }}
             >
-              {reorderable && <span className="drag-handle" title="Drag to reorder">⠿</span>}
+              {reorderable && <span className="drag-handle" title="Drag to reorder"><Icon name="grip" size={14} /></span>}
               <input
                 type="color"
                 value={item.color || '#94a3b8'}
@@ -113,7 +114,7 @@ export default function SettingsList({ items, onCreate, onUpdate, onDelete, onRe
                 disabled={busyId === item.id}
                 title="Delete"
               >
-                🗑
+                <Icon name="trash" size={14} />
               </button>
             </div>
             {blocked?.id === item.id && (

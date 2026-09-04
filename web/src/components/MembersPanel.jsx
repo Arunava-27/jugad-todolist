@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../lib/api.js';
 import { alertDialog } from '../lib/dialogs.js';
+import Icon from './Icon.jsx';
 
 export default function MembersPanel({ workspaceId, currentUserId }) {
   const [members, setMembers] = useState([]);
@@ -46,14 +47,17 @@ export default function MembersPanel({ workspaceId, currentUserId }) {
           <div className="settings-row" key={m.id}>
             <span className="avatar" style={{ background: 'var(--accent)' }}>{m.name.slice(0, 2).toUpperCase()}</span>
             <div style={{ flex: 1 }}>
-              <div>{m.name} {m.id === currentUserId && <span className="settings-hint">(you)</span>}</div>
-              <div className="settings-hint" style={{ margin: 0 }}>{m.email} · {m.role}</div>
+              <div>
+                {m.name} {m.id === currentUserId && <span className="settings-hint">(you)</span>}
+                {m.role === 'owner' && <span className="chip" style={{ marginLeft: 6 }}>Owner</span>}
+              </div>
+              <div className="settings-hint" style={{ margin: 0 }}>{m.email}</div>
             </div>
             <button
               className="icon-btn danger-hover"
               title="Remove from workspace"
               onClick={() => remove(m.id)}
-            >🗑</button>
+            ><Icon name="trash" size={14} /></button>
           </div>
         ))}
       </div>

@@ -1,4 +1,5 @@
 import { formatDueDate, isOverdue, initials, colorFor } from '../lib/format.js';
+import Icon from './Icon.jsx';
 
 export default function TaskRow({ task, priorities, onToggleComplete, onOpenTask, draggable, onDragStart }) {
   return (
@@ -13,7 +14,7 @@ export default function TaskRow({ task, priorities, onToggleComplete, onOpenTask
         onClick={() => onToggleComplete(task)}
         aria-label="Toggle complete"
       >
-        {task.is_completed && '✓'}
+        {task.is_completed && <Icon name="check" size={12} />}
       </button>
 
       <div className="task-main" onClick={() => onOpenTask(task)}>
@@ -28,7 +29,7 @@ export default function TaskRow({ task, priorities, onToggleComplete, onOpenTask
             </span>
           )}
           {task.subtask_count > 0 && (
-            <span className="chip">☑ {task.subtask_completed_count}/{task.subtask_count}</span>
+            <span className="chip"><Icon name="check" size={11} /> {task.subtask_completed_count}/{task.subtask_count}</span>
           )}
           {task.labels.map((l) => (
             <span key={l.name} className="chip label-chip" style={{ background: (l.color || '#94a3b8') + '26', color: l.color }}>{l.name}</span>
