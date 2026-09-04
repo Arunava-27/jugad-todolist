@@ -35,6 +35,9 @@ function hasColumn(table, column) {
 if (!hasColumn('assignees', 'color')) {
   db.exec("ALTER TABLE assignees ADD COLUMN color TEXT DEFAULT '#6366f1'");
 }
+if (!hasColumn('projects', 'is_favorite')) {
+  db.exec('ALTER TABLE projects ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0');
+}
 
 // Simple additive columns: safe as a plain ALTER (nullable, backfilled below).
 for (const table of ['projects', 'tasks']) {

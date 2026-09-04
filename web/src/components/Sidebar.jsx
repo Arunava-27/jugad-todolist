@@ -13,9 +13,11 @@ const NEW_WORKSPACE = '__new__';
 export default function Sidebar({
   user, workspaces, activeWorkspaceId, onSwitchWorkspace, onCreateWorkspace,
   projects, labels, view, onSelectView, open, onClose, onLogout, onProjectsChanged,
+  searchQuery, onSearch,
 }) {
   const [addingProject, setAddingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const [searchDraft, setSearchDraft] = useState(searchQuery || '');
 
   async function submitNewProject(e) {
     e.preventDefault();
@@ -36,7 +38,38 @@ export default function Sidebar({
     onSwitchWorkspace(Number(val));
   }
 
+  async function toggleFavorite(e, project) {
+    e.stopPropagation();
+    await api.updateProject(project.id, { is_favorite: !project.is_favorite });
+    onProjectsChanged();
+  }
+
+  function submitSearch(e) {
+    e.preventDefault();
+    if (searchDraft.trim()) onSearch(searchDraft.trim());
+  }
+
+  function projectRow(p) {
+    return (
+      <button
+        key={p.id}
+        className={`nav-item ${view.type === 'project' && view.id === p.id ? 'active' : ''}`}
+        onClick={() => onSelectView({ type: 'project', id: p.id, mode: 'list' })}
+      >
+        <span className="dot" style={{ background: p.color }} />
+        <span className="nav-item-label">{p.name}</span>
+        <span className="nav-count">{p.task_count - p.completed_count}</span>
+        <span
+          className={`star-toggle ${p.is_favorite ? 'active' : ''}`}
+          onClick={(e) => toggleFavorite(e, p)}
+          title={p.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
+        >{p.is_favorite ? '★' : '☆'}</span>
+      </button>
+    );
+  }
+
   const activeInList = workspaces.some((w) => w.id === activeWorkspaceId);
+  const favorites = projects.filter((p) => p.is_favorite);
 
   return (
     <>
@@ -54,6 +87,14 @@ export default function Sidebar({
           <option value={NEW_WORKSPACE}>＋ New workspace…</option>
         </select>
 
+        <form className="sidebar-search" onSubmit={submitSearch}>
+          <input
+            placeholder="🔍 Search tasks…"
+            value={searchDraft}
+            onChange={(e) => setSearchDraft(e.target.value)}
+          />
+        </form>
+
         <nav className="sidebar-nav">
           {SMART_VIEWS.map((v) => (
             <button
@@ -65,6 +106,13 @@ export default function Sidebar({
             </button>
           ))}
         </nav>
+
+        {favorites.length > 0 && (
+          <div className="sidebar-section">
+            <div className="sidebar-section-title">Favorites</div>
+            {favorites.map(projectRow)}
+          </div>
+        )}
 
         <div className="sidebar-section">
           <div className="sidebar-section-title">
@@ -82,17 +130,7 @@ export default function Sidebar({
               />
             </form>
           )}
-          {projects.map((p) => (
-            <button
-              key={p.id}
-              className={`nav-item ${view.type === 'project' && view.id === p.id ? 'active' : ''}`}
-              onClick={() => onSelectView({ type: 'project', id: p.id, mode: 'list' })}
-            >
-              <span className="dot" style={{ background: p.color }} />
-              <span className="nav-item-label">{p.name}</span>
-              <span className="nav-count">{p.task_count - p.completed_count}</span>
-            </button>
-          ))}
+          {projects.map(projectRow)}
         </div>
 
         {labels.length > 0 && (

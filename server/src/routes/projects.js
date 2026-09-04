@@ -16,6 +16,7 @@ router.get('/', (req, res) => {
   res.json(rows.map((p) => ({
     ...p,
     is_archived: !!p.is_archived,
+    is_favorite: !!p.is_favorite,
     task_count: countMap[p.id]?.total || 0,
     completed_count: countMap[p.id]?.completed || 0,
   })));
@@ -42,13 +43,14 @@ router.patch('/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM projects WHERE id = ? AND workspace_id = ?').get(id, req.workspaceId);
   if (!existing) return res.status(404).json({ error: 'Project not found' });
 
-  const fields = ['name', 'status', 'platform', 'description', 'version', 'build_number', 'start_date', 'target_date', 'color', 'is_archived'];
+  const fields = ['name', 'status', 'platform', 'description', 'version', 'build_number', 'start_date', 'target_date', 'color', 'is_archived', 'is_favorite'];
+  const boolFields = new Set(['is_archived', 'is_favorite']);
   const updates = [];
   const values = [];
   for (const f of fields) {
     if (f in (req.body || {})) {
       updates.push(`${f} = ?`);
-      values.push(f === 'is_archived' ? (req.body[f] ? 1 : 0) : req.body[f]);
+      values.push(boolFields.has(f) ? (req.body[f] ? 1 : 0) : req.body[f]);
     }
   }
   if (updates.length === 0) return res.json(existing);

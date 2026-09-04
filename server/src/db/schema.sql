@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS projects (
   target_date TEXT,
   color TEXT DEFAULT '#6366f1',
   is_archived INTEGER NOT NULL DEFAULT 0,
+  is_favorite INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 

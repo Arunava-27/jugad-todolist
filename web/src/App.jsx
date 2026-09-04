@@ -84,6 +84,8 @@ export default function App() {
       params.project_id = view.id;
     } else if (view.type === 'label') {
       params.label = view.name;
+    } else if (view.type === 'search') {
+      params.q = view.q;
     }
     api.listTasks(params).then(setTasks).catch(() => {}).finally(() => setLoadingTasks(false));
   }, [user, activeWorkspaceId, view]);
@@ -111,7 +113,7 @@ export default function App() {
     all: '🗂️ All tasks',
     settings: '⚙️ Settings',
     admin: '🛡️ Admin',
-  }[view.type] || (view.type === 'project' ? currentProject?.name : `#${view.name}`);
+  }[view.type] || (view.type === 'project' ? currentProject?.name : view.type === 'search' ? `🔍 “${view.q}”` : `#${view.name}`);
 
   async function handleCreateTask(fields) {
     const defaults = {};
@@ -173,6 +175,8 @@ export default function App() {
         onClose={() => setSidebarOpen(false)}
         onLogout={handleLogout}
         onProjectsChanged={refreshLookups}
+        searchQuery={view.type === 'search' ? view.q : ''}
+        onSearch={(q) => setView({ type: 'search', q })}
       />
 
       <main className="main-panel">

@@ -117,6 +117,14 @@ input, select, textarea {
 .nav-count { font-size: 12px; color: var(--text-muted); }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .logout { margin-top: auto; color: var(--text-muted); }
+.star-toggle {
+  flex-shrink: 0; color: var(--text-muted); opacity: 0; font-size: 13px; padding: 2px; border-radius: 4px;
+}
+.nav-item:hover .star-toggle { opacity: 1; }
+.star-toggle.active { opacity: 1; color: #eab308; }
+.star-toggle:hover { background: var(--accent-soft); }
+.sidebar-search { margin: 0 0 12px; }
+.sidebar-search input { width: 100%; font-size: 13px; }
 .icon-btn { background: none; border: none; color: var(--text-muted); font-size: 15px; padding: 2px 6px; border-radius: 6px; }
 .icon-btn:hover { background: var(--accent-soft); }
 .inline-add-form { padding: 0 10px 6px; }
@@ -152,6 +160,7 @@ input, select, textarea {
 .quick-add-form > input:focus { outline: none; }
 .quick-add-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .quick-add-actions { margin-left: auto; display: flex; gap: 8px; }
+.quick-add-preview { display: flex; gap: 6px; flex-wrap: wrap; margin: -2px 0 8px; }
 
 /* ---------- Task list ---------- */
 .task-list { list-style: none; margin: 8px 0 40px; padding: 0 28px; display: flex; flex-direction: column; gap: 2px; }

@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { parseQuickAdd } from '../lib/quickAddParser.js';
+import { formatDueDate } from '../lib/format.js';
 
 export default function QuickAdd({ onCreate, projects, priorities }) {
   const [open, setOpen] = useState(false);
@@ -8,16 +10,25 @@ export default function QuickAdd({ onCreate, projects, priorities }) {
   const [projectId, setProjectId] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const parsed = useMemo(
+    () => (title.trim() ? parseQuickAdd(title, { priorities, projects }) : null),
+    [title, priorities, projects]
+  );
+
   async function submit(e) {
     e.preventDefault();
     if (!title.trim()) return;
     setSubmitting(true);
     try {
+      const p = parseQuickAdd(title, { priorities, projects });
       await onCreate({
-        title: title.trim(),
-        due_date: dueDate || undefined, // let the current view's smart default apply when left blank
-        priority: priority || null,
-        project_id: projectId ? Number(projectId) : undefined,
+        title: p.title || title.trim(),
+        // Manual pickers win over what was parsed from the text; parsed
+        // values fill in when a picker was left untouched.
+        due_date: dueDate || p.due_date || undefined,
+        priority: priority || p.priority || null,
+        project_id: projectId ? Number(projectId) : (p.project_id || undefined),
+        labels: p.labels.length ? p.labels : undefined,
       });
       setTitle('');
       setDueDate('');
@@ -35,22 +46,34 @@ export default function QuickAdd({ onCreate, projects, priorities }) {
     );
   }
 
+  const showPreview = parsed && (parsed.due_date || parsed.priority || parsed.project || parsed.labels.length > 0);
+
   return (
     <form className="quick-add-form" onSubmit={submit}>
       <input
         autoFocus
-        placeholder="Task name"
+        placeholder="Task name — try “tomorrow #Project @label p1”"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
       />
+      {showPreview && (
+        <div className="quick-add-preview">
+          {parsed.due_date && <span className="chip due-chip">📅 {formatDueDate(parsed.due_date)}</span>}
+          {parsed.priority && <span className="chip">🚩 {parsed.priority}</span>}
+          {parsed.project && (
+            <span className="chip">{parsed.project_id ? '📁' : '❓'} {parsed.project}{!parsed.project_id && ' (no match)'}</span>
+          )}
+          {parsed.labels.map((l) => <span key={l} className="chip label-chip">#{l}</span>)}
+        </div>
+      )}
       <div className="quick-add-row">
-        <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-        <select value={priority} onChange={(e) => setPriority(e.target.value)}>
+        <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} title="Override the parsed due date" />
+        <select value={priority} onChange={(e) => setPriority(e.target.value)} title="Override the parsed priority">
           <option value="">Priority</option>
           {priorities.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
         </select>
-        <select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+        <select value={projectId} onChange={(e) => setProjectId(e.target.value)} title="Override the parsed project">
           <option value="">No project</option>
           {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
