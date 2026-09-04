@@ -6,6 +6,7 @@ import Settings from './pages/Settings.jsx';
 import Admin from './pages/Admin.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import TaskList from './components/TaskList.jsx';
+import SectionedTaskList from './components/SectionedTaskList.jsx';
 import BoardView from './components/BoardView.jsx';
 import TaskModal from './components/TaskModal.jsx';
 import QuickAdd from './components/QuickAdd.jsx';
@@ -27,6 +28,7 @@ export default function App() {
   const [priorities, setPriorities] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const [sections, setSections] = useState([]);
 
   const [view, setView] = useState({ type: 'today' });
   const [activeTask, setActiveTask] = useState(null);
@@ -94,6 +96,15 @@ export default function App() {
     loadTasks();
   }, [loadTasks]);
 
+  const loadSections = useCallback(() => {
+    if (!activeWorkspaceId || view.type !== 'project') { setSections([]); return; }
+    api.listSections(view.id).then(setSections).catch(() => {});
+  }, [activeWorkspaceId, view]);
+
+  useEffect(() => {
+    loadSections();
+  }, [loadSections]);
+
   if (!authChecked) return <div className="boot-screen">Loading…</div>;
   if (!user) {
     return authScreen === 'register'
@@ -136,6 +147,11 @@ export default function App() {
     loadTasks();
     refreshLookups();
     return updated;
+  }
+
+  async function handleTaskMoved(taskId, sectionId) {
+    await api.updateTask(taskId, { section_id: sectionId });
+    loadTasks();
   }
 
   async function handleDeleteTask(id) {
@@ -225,6 +241,18 @@ export default function App() {
                 loading={loadingTasks}
                 onUpdateTask={handleUpdateTask}
                 onOpenTask={setActiveTask}
+              />
+            ) : view.type === 'project' ? (
+              <SectionedTaskList
+                tasks={tasks}
+                sections={sections}
+                projectId={view.id}
+                priorities={priorities}
+                loading={loadingTasks}
+                onToggleComplete={handleToggleComplete}
+                onOpenTask={setActiveTask}
+                onTaskMoved={handleTaskMoved}
+                onSectionsChanged={loadSections}
               />
             ) : (
               <TaskList

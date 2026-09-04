@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../lib/api.js';
 
 export default function TaskModal({ task, projects, statuses, priorities, onClose, onUpdate, onDelete }) {
   const [attachments, setAttachments] = useState(task.attachments || []);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [sectionOptions, setSectionOptions] = useState([]);
 
   async function handleFileChange(e) {
     const file = e.target.files[0];
@@ -43,6 +44,7 @@ export default function TaskModal({ task, projects, statuses, priorities, onClos
     build_number: task.build_number || '',
     link: task.link || '',
     project_id: task.project_id || '',
+    section_id: task.section_id || '',
     labels: task.labels.map((l) => l.name).join(', '),
     assignees: task.assignees.map((a) => a.name).join(', '),
   });
@@ -50,6 +52,18 @@ export default function TaskModal({ task, projects, statuses, priorities, onClos
 
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  useEffect(() => {
+    if (form.project_id) {
+      api.listSections(form.project_id).then(setSectionOptions).catch(() => setSectionOptions([]));
+    } else {
+      setSectionOptions([]);
+    }
+  }, [form.project_id]);
+
+  function changeProject(value) {
+    setForm((f) => ({ ...f, project_id: value, section_id: Number(value) === task.project_id ? f.section_id : '' }));
   }
 
   async function save() {
@@ -67,6 +81,7 @@ export default function TaskModal({ task, projects, statuses, priorities, onClos
         build_number: form.build_number || null,
         link: form.link || null,
         project_id: form.project_id ? Number(form.project_id) : null,
+        section_id: form.section_id ? Number(form.section_id) : null,
         // is_completed is deliberately omitted: the server derives it from
         // whichever status is marked "done" in Settings > Workflow.
         labels: form.labels.split(',').map((s) => s.trim()).filter(Boolean),
@@ -121,9 +136,16 @@ export default function TaskModal({ task, projects, statuses, priorities, onClos
           </label>
           <label>
             Project
-            <select value={form.project_id} onChange={(e) => set('project_id', e.target.value)}>
+            <select value={form.project_id} onChange={(e) => changeProject(e.target.value)}>
               <option value="">No project</option>
               {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </label>
+          <label>
+            Section
+            <select value={form.section_id} onChange={(e) => set('section_id', e.target.value)} disabled={!form.project_id}>
+              <option value="">No section</option>
+              {sectionOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </label>
           <label>

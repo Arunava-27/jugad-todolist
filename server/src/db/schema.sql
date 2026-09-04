@@ -43,10 +43,21 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
+-- Named groupings of tasks within a project's List view (e.g. "Backlog",
+-- "In Review") — independent of a task's status/board column.
+CREATE TABLE IF NOT EXISTS sections (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  sort_order REAL NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
 CREATE TABLE IF NOT EXISTS tasks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
   project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+  section_id INTEGER REFERENCES sections(id) ON DELETE SET NULL,
   notion_url TEXT,
   notion_task_number INTEGER,
   title TEXT NOT NULL,
@@ -129,6 +140,7 @@ CREATE TABLE IF NOT EXISTS attachments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_workspace_members_user ON workspace_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_sections_project ON sections(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);

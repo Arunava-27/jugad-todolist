@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api.js';
 
 const SMART_VIEWS = [
@@ -18,6 +18,16 @@ export default function Sidebar({
   const [addingProject, setAddingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [searchDraft, setSearchDraft] = useState(searchQuery || '');
+  const searchDebounce = useRef(null);
+
+  function handleSearchChange(value) {
+    setSearchDraft(value);
+    clearTimeout(searchDebounce.current);
+    if (!value.trim()) return; // don't force-navigate on an empty box; Enter/blur still no-ops too
+    searchDebounce.current = setTimeout(() => onSearch(value.trim()), 300);
+  }
+
+  useEffect(() => () => clearTimeout(searchDebounce.current), []);
 
   async function submitNewProject(e) {
     e.preventDefault();
@@ -46,6 +56,7 @@ export default function Sidebar({
 
   function submitSearch(e) {
     e.preventDefault();
+    clearTimeout(searchDebounce.current);
     if (searchDraft.trim()) onSearch(searchDraft.trim());
   }
 
@@ -91,7 +102,7 @@ export default function Sidebar({
           <input
             placeholder="🔍 Search tasks…"
             value={searchDraft}
-            onChange={(e) => setSearchDraft(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
           />
         </form>
 

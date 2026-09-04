@@ -38,6 +38,9 @@ if (!hasColumn('assignees', 'color')) {
 if (!hasColumn('projects', 'is_favorite')) {
   db.exec('ALTER TABLE projects ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0');
 }
+if (!hasColumn('tasks', 'section_id')) {
+  db.exec('ALTER TABLE tasks ADD COLUMN section_id INTEGER REFERENCES sections(id) ON DELETE SET NULL');
+}
 
 // Simple additive columns: safe as a plain ALTER (nullable, backfilled below).
 for (const table of ['projects', 'tasks']) {
@@ -146,6 +149,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_assignees_workspace ON assignees(workspace_id);
   CREATE INDEX IF NOT EXISTS idx_statuses_workspace ON statuses(workspace_id);
   CREATE INDEX IF NOT EXISTS idx_priorities_workspace ON priorities(workspace_id);
+  CREATE INDEX IF NOT EXISTS idx_tasks_section ON tasks(section_id);
 `);
 db.pragma('foreign_keys = ON');
 

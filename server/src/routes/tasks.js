@@ -68,6 +68,14 @@ function isDoneStatus(workspaceId, name) {
   return !!db.prepare('SELECT is_done FROM statuses WHERE workspace_id = ? AND name = ?').get(workspaceId, name)?.is_done;
 }
 
+// A section belongs to exactly one project — a task's section must match its
+// own project (or both must be empty/null).
+function sectionMatchesProject(sectionId, projectId) {
+  if (!sectionId) return true;
+  const section = db.prepare('SELECT project_id FROM sections WHERE id = ?').get(sectionId);
+  return !!section && section.project_id === projectId;
+}
+
 router.get('/', (req, res) => {
   const { project_id, status, priority, label, assignee, completed, due_before, due_after, q } = req.query;
   let sql = 'SELECT DISTINCT t.* FROM tasks t';
@@ -90,6 +98,12 @@ router.get('/', (req, res) => {
   } else if (project_id) {
     where.push('t.project_id = ?');
     params.push(Number(project_id));
+  }
+  if (req.query.section_id === 'none') {
+    where.push('t.section_id IS NULL');
+  } else if (req.query.section_id) {
+    where.push('t.section_id = ?');
+    params.push(Number(req.query.section_id));
   }
   if (status) {
     where.push('t.status = ?');
@@ -137,13 +151,17 @@ router.post('/', (req, res) => {
     const project = db.prepare('SELECT id FROM projects WHERE id = ? AND workspace_id = ?').get(projectId, req.workspaceId);
     if (!project) return res.status(400).json({ error: 'Project not found in this workspace' });
   }
+  const sectionId = b.section_id || null;
+  if (sectionId && !sectionMatchesProject(sectionId, projectId)) {
+    return res.status(400).json({ error: "section_id must belong to the task's project" });
+  }
 
   const info = db.prepare(
-    `INSERT INTO tasks (workspace_id, project_id, title, description, status, priority, platform, due_date,
+    `INSERT INTO tasks (workspace_id, project_id, section_id, title, description, status, priority, platform, due_date,
        estimate_hours, version, build_number, link, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
-    req.workspaceId, projectId, b.title.trim(), b.description || null, b.status || defaultStatusName(req.workspaceId),
+    req.workspaceId, projectId, sectionId, b.title.trim(), b.description || null, b.status || defaultStatusName(req.workspaceId),
     b.priority || null, b.platform || null, b.due_date || null, b.estimate_hours ?? null,
     b.version || null, b.build_number || null, b.link || null, b.sort_order ?? Date.now()
   );
@@ -164,8 +182,18 @@ router.patch('/:id', (req, res) => {
     const project = db.prepare('SELECT id FROM projects WHERE id = ? AND workspace_id = ?').get(b.project_id, req.workspaceId);
     if (!project) return res.status(400).json({ error: 'Project not found in this workspace' });
   }
+  if ('section_id' in b && b.section_id) {
+    const effectiveProjectId = 'project_id' in b ? b.project_id : existing.project_id;
+    if (!sectionMatchesProject(b.section_id, effectiveProjectId)) {
+      return res.status(400).json({ error: "section_id must belong to the task's project" });
+    }
+  } else if ('project_id' in b && b.project_id !== existing.project_id) {
+    // Moving to a different (or no) project — the old section_id no longer
+    // applies unless the caller explicitly set a new one above.
+    b.section_id = null;
+  }
 
-  const fields = ['project_id', 'title', 'description', 'status', 'priority', 'platform',
+  const fields = ['project_id', 'section_id', 'title', 'description', 'status', 'priority', 'platform',
     'due_date', 'estimate_hours', 'version', 'build_number', 'link', 'sort_order'];
   const updates = [];
   const values = [];

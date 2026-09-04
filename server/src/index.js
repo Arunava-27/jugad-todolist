@@ -14,6 +14,7 @@ import labelRoutes from './routes/labels.js';
 import assigneeRoutes from './routes/assignees.js';
 import statusRoutes from './routes/statuses.js';
 import priorityRoutes from './routes/priorities.js';
+import sectionRoutes from './routes/sections.js';
 import attachmentRoutes from './routes/attachments.js';
 import { requireAuth, requireAdmin, requireWorkspace } from './middleware/auth.js';
 import './db/index.js'; // ensure schema is applied on boot
@@ -47,6 +48,7 @@ app.use('/api/labels', requireAuth, requireWorkspace, labelRoutes);
 app.use('/api/assignees', requireAuth, requireWorkspace, assigneeRoutes);
 app.use('/api/statuses', requireAuth, requireWorkspace, statusRoutes);
 app.use('/api/priorities', requireAuth, requireWorkspace, priorityRoutes);
+app.use('/api/sections', requireAuth, requireWorkspace, sectionRoutes);
 app.use('/api', requireAuth, attachmentRoutes); // self-scopes per attachment/task, see routes/attachments.js
 
 // Serve the built frontend (web/dist) in production / when present.

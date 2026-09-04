@@ -117,4 +117,9 @@ export const api = {
 
   uploadAttachment: (taskId, file) => upload(`/tasks/${taskId}/attachments`, file),
   deleteAttachment: (id) => request(`/attachments/${id}`, { method: 'DELETE' }),
+
+  listSections: (projectId) => request(`/sections?project_id=${projectId}`),
+  createSection: (data) => request('/sections', { method: 'POST', body: JSON.stringify(data) }),
+  updateSection: (id, data) => request(`/sections/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteSection: (id) => request(`/sections/${id}`, { method: 'DELETE' }),
 };
