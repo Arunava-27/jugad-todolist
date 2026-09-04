@@ -6,7 +6,7 @@ const router = Router();
 router.get('/', (req, res) => {
   const includeArchived = req.query.includeArchived === '1';
   const rows = db.prepare(
-    `SELECT * FROM projects WHERE workspace_id = ? ${includeArchived ? '' : 'AND is_archived = 0'} ORDER BY name COLLATE NOCASE`
+    `SELECT * FROM projects WHERE workspace_id = ? ${includeArchived ? '' : 'AND is_archived = 0'} ORDER BY sort_order`
   ).all(req.workspaceId);
   const counts = db.prepare(
     `SELECT project_id, COUNT(*) as total, SUM(is_completed) as completed
@@ -25,14 +25,15 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const { name, status, platform, description, version, build_number, start_date, target_date, color } = req.body || {};
   if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
+  const maxOrder = db.prepare('SELECT MAX(sort_order) m FROM projects WHERE workspace_id = ?').get(req.workspaceId).m ?? -1;
   const stmt = db.prepare(
-    `INSERT INTO projects (workspace_id, name, status, platform, description, version, build_number, start_date, target_date, color)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO projects (workspace_id, name, status, platform, description, version, build_number, start_date, target_date, color, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const info = stmt.run(
     req.workspaceId, name.trim(), status || null, platform || null, description || null,
     version || null, build_number || null, start_date || null, target_date || null,
-    color || '#6366f1'
+    color || '#6366f1', maxOrder + 1
   );
   const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(info.lastInsertRowid);
   res.status(201).json(row);
@@ -43,7 +44,7 @@ router.patch('/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM projects WHERE id = ? AND workspace_id = ?').get(id, req.workspaceId);
   if (!existing) return res.status(404).json({ error: 'Project not found' });
 
-  const fields = ['name', 'status', 'platform', 'description', 'version', 'build_number', 'start_date', 'target_date', 'color', 'is_archived', 'is_favorite'];
+  const fields = ['name', 'status', 'platform', 'description', 'version', 'build_number', 'start_date', 'target_date', 'color', 'is_archived', 'is_favorite', 'sort_order'];
   const boolFields = new Set(['is_archived', 'is_favorite']);
   const updates = [];
   const values = [];

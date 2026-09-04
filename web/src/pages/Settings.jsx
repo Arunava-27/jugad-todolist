@@ -151,45 +151,25 @@ export default function Settings({ statuses, priorities, labels, assignees, proj
           {tab === 'Projects' && (
             <>
               <h3>Projects</h3>
-              <p className="settings-hint">Rename, recolor, archive, or delete projects.</p>
-              <div className="settings-list">
-                {projects.map((p) => (
-                  <div className="settings-row" key={p.id}>
-                    <input
-                      type="color"
-                      value={p.color || '#6366f1'}
-                      onChange={(e) => api.updateProject(p.id, { color: e.target.value }).then(onChange)}
-                    />
-                    <input
-                      type="text"
-                      defaultValue={p.name}
-                      onBlur={(e) => {
-                        if (e.target.value.trim() && e.target.value.trim() !== p.name) {
-                          api.updateProject(p.id, { name: e.target.value.trim() }).then(onChange);
-                        }
-                      }}
-                    />
-                    <div className="settings-row-flags">
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={!!p.is_archived}
-                          onChange={(e) => api.updateProject(p.id, { is_archived: e.target.checked }).then(onChange)}
-                        /> Archived
-                      </label>
-                    </div>
-                    <button
-                      className="icon-btn danger-hover"
-                      title="Delete project (tasks become unassigned, not deleted)"
-                      onClick={() => {
-                        if (confirm(`Delete "${p.name}"? Its tasks will move to Inbox, not be deleted.`)) {
-                          api.deleteProject(p.id).then(onChange);
-                        }
-                      }}
-                    >🗑</button>
-                  </div>
-                ))}
-              </div>
+              <p className="settings-hint">Rename, recolor, archive, delete, or reorder projects. Drag the handle to reorder — this is the order they show in the sidebar.</p>
+              <SettingsList
+                items={projects}
+                reorderable
+                addPlaceholder="New project name"
+                onCreate={(data) => api.createProject(data).then(onChange)}
+                onUpdate={(id, patch) => api.updateProject(id, patch).then(onChange)}
+                onDelete={(id) => {
+                  const p = projects.find((x) => x.id === id);
+                  if (!confirm(`Delete "${p?.name}"? Its tasks will move to Inbox, not be deleted.`)) return Promise.resolve();
+                  return api.deleteProject(id).then(onChange);
+                }}
+                onReorder={(ordered) => Promise.all(ordered.map((item, idx) => api.updateProject(item.id, { sort_order: idx }))).then(onChange)}
+                renderRowExtra={(item, patch) => (
+                  <label title="Hide from the sidebar's main project list">
+                    <input type="checkbox" checked={!!item.is_archived} onChange={(e) => patch({ is_archived: e.target.checked })} /> Archived
+                  </label>
+                )}
+              />
             </>
           )}
         </div>

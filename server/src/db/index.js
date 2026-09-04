@@ -38,6 +38,13 @@ if (!hasColumn('assignees', 'color')) {
 if (!hasColumn('projects', 'is_favorite')) {
   db.exec('ALTER TABLE projects ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0');
 }
+if (!hasColumn('projects', 'sort_order')) {
+  db.exec('ALTER TABLE projects ADD COLUMN sort_order REAL NOT NULL DEFAULT 0');
+  // Stable initial order (previously implicit alphabetical) so nothing shuffles on first load.
+  const rows = db.prepare('SELECT id FROM projects ORDER BY name COLLATE NOCASE').all();
+  const update = db.prepare('UPDATE projects SET sort_order = ? WHERE id = ?');
+  rows.forEach((r, idx) => update.run(idx, r.id));
+}
 if (!hasColumn('tasks', 'section_id')) {
   db.exec('ALTER TABLE tasks ADD COLUMN section_id INTEGER REFERENCES sections(id) ON DELETE SET NULL');
 }
