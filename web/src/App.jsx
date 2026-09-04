@@ -241,6 +241,7 @@ export default function App() {
                 loading={loadingTasks}
                 onUpdateTask={handleUpdateTask}
                 onOpenTask={setActiveTask}
+                onReorderStatuses={(ordered) => Promise.all(ordered.map((s, idx) => api.updateStatus(s.id, { sort_order: idx }))).then(refreshLookups)}
               />
             ) : view.type === 'project' ? (
               <SectionedTaskList

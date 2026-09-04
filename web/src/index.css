@@ -208,7 +208,12 @@ input, select, textarea {
 .board-view { display: flex; gap: 16px; padding: 8px 28px 40px; overflow-x: auto; flex: 1; }
 .board-column { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); min-width: 260px; max-width: 280px; display: flex; flex-direction: column; max-height: 100%; }
 .board-column.drag-over { outline: 2px dashed var(--accent); }
-.board-column-title { padding: 12px 14px; font-weight: 600; font-size: 13px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+.board-column-title {
+  padding: 12px 14px; font-weight: 600; font-size: 13px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 4px; cursor: grab;
+}
+.board-column-title .nav-count { margin-left: auto; }
+.board-column-title .drag-handle { color: var(--text-muted); }
 .board-column-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
 .board-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; cursor: grab; }
 .board-card-title { font-size: 13.5px; margin-bottom: 6px; }

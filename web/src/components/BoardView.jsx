@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { formatDueDate, colorFor } from '../lib/format.js';
 
-export default function BoardView({ tasks, statuses, priorities, loading, onUpdateTask, onOpenTask }) {
+export default function BoardView({ tasks, statuses, priorities, loading, onUpdateTask, onOpenTask, onReorderStatuses }) {
   const [dragOverStatus, setDragOverStatus] = useState(null);
+  const [dragColumnStatus, setDragColumnStatus] = useState(null);
 
   if (loading) return <div className="empty-state">Loading tasks…</div>;
 
@@ -12,12 +13,31 @@ export default function BoardView({ tasks, statuses, priorities, loading, onUpda
     tasks: tasks.filter((t) => t.status === s.name),
   }));
 
+  function reorderColumns(fromStatus, toStatus) {
+    const names = statuses.map((s) => s.name);
+    const from = names.indexOf(fromStatus);
+    const to = names.indexOf(toStatus);
+    if (from === -1 || to === -1) return;
+    const reordered = [...statuses];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    onReorderStatuses(reordered);
+  }
+
   function handleDrop(e, status) {
     e.preventDefault();
     setDragOverStatus(null);
+    // Two independent drag sources can land here: a task card (identified via
+    // dataTransfer, since it may be dropped from a fresh drag with no prior
+    // state) or a column header being reordered (tracked via local state,
+    // since column identity doesn't need to survive outside this component).
     const taskId = Number(e.dataTransfer.getData('text/task-id'));
-    if (!taskId) return;
-    onUpdateTask(taskId, { status });
+    if (taskId) {
+      onUpdateTask(taskId, { status });
+    } else if (dragColumnStatus && dragColumnStatus !== status) {
+      reorderColumns(dragColumnStatus, status);
+    }
+    setDragColumnStatus(null);
   }
 
   return (
@@ -30,7 +50,14 @@ export default function BoardView({ tasks, statuses, priorities, loading, onUpda
           onDragLeave={() => setDragOverStatus(null)}
           onDrop={(e) => handleDrop(e, col.status)}
         >
-          <div className="board-column-title">
+          <div
+            className="board-column-title"
+            draggable
+            onDragStart={() => setDragColumnStatus(col.status)}
+            onDragEnd={() => setDragColumnStatus(null)}
+            title="Drag to reorder columns"
+          >
+            <span className="drag-handle">⠿</span>
             <span className="dot" style={{ background: col.color }} /> {col.status} <span className="nav-count">{col.tasks.length}</span>
           </div>
           <div className="board-column-body">
