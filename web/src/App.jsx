@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { api, setActiveWorkspaceId } from './lib/api.js';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
@@ -33,6 +33,7 @@ export default function App() {
   const [view, setView] = useState({ type: 'today' });
   const [activeTask, setActiveTask] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const preSearchViewRef = useRef({ type: 'today' });
 
   useEffect(() => {
     api.me()
@@ -175,6 +176,17 @@ export default function App() {
     });
   }
 
+  function handleSearch(q) {
+    if (q) {
+      if (view.type !== 'search') preSearchViewRef.current = view; // remember where to go back to
+      setView({ type: 'search', q });
+    } else {
+      // Search box cleared: leave the stale results behind and go back to
+      // whatever view was active before the search started.
+      setView(preSearchViewRef.current || { type: 'today' });
+    }
+  }
+
   return (
     <div className="app-shell">
       <Sidebar
@@ -192,7 +204,7 @@ export default function App() {
         onLogout={handleLogout}
         onProjectsChanged={refreshLookups}
         searchQuery={view.type === 'search' ? view.q : ''}
-        onSearch={(q) => setView({ type: 'search', q })}
+        onSearch={handleSearch}
       />
 
       <main className="main-panel">

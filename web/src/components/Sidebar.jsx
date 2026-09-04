@@ -23,11 +23,21 @@ export default function Sidebar({
   function handleSearchChange(value) {
     setSearchDraft(value);
     clearTimeout(searchDebounce.current);
-    if (!value.trim()) return; // don't force-navigate on an empty box; Enter/blur still no-ops too
+    if (!value.trim()) {
+      onSearch(''); // clearing the box exits search immediately, no debounce wait
+      return;
+    }
     searchDebounce.current = setTimeout(() => onSearch(value.trim()), 300);
   }
 
   useEffect(() => () => clearTimeout(searchDebounce.current), []);
+
+  // If navigation away from search happens some other way (clicking a nav
+  // item, board drag, etc.), the box should stop showing stale search text.
+  useEffect(() => {
+    if (!searchQuery && searchDraft) setSearchDraft('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   async function submitNewProject(e) {
     e.preventDefault();
