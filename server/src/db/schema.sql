@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS labels (
   workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   color TEXT DEFAULT '#94a3b8',
+  sort_order REAL NOT NULL DEFAULT 0,
   UNIQUE (workspace_id, name)
 );
 
@@ -98,6 +99,7 @@ CREATE TABLE IF NOT EXISTS assignees (
   workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   color TEXT DEFAULT '#6366f1',
+  sort_order REAL NOT NULL DEFAULT 0,
   UNIQUE (workspace_id, name)
 );
 

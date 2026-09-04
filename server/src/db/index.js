@@ -140,6 +140,17 @@ for (const [table, refTable] of [['task_labels', 'labels'], ['task_assignees', '
   }
 }
 
+for (const table of ['labels', 'assignees']) {
+  if (!hasColumn(table, 'sort_order')) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN sort_order REAL NOT NULL DEFAULT 0`);
+    // Give existing rows a stable initial order (previously implicit alphabetical)
+    // instead of leaving them all at 0, so they don't visually shuffle on first load.
+    const rows = db.prepare(`SELECT id FROM ${table} ORDER BY name COLLATE NOCASE`).all();
+    const update = db.prepare(`UPDATE ${table} SET sort_order = ? WHERE id = ?`);
+    rows.forEach((r, idx) => update.run(idx, r.id));
+  }
+}
+
 // Now that every table definitely has workspace_id (and correct FK text),
 // it's safe to index it and turn foreign key enforcement back on.
 db.exec(`

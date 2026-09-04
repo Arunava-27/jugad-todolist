@@ -111,13 +111,15 @@ export default function Settings({ statuses, priorities, labels, assignees, proj
           {tab === 'Labels' && (
             <>
               <h3>Labels</h3>
-              <p className="settings-hint">Used to tag and filter tasks.</p>
+              <p className="settings-hint">Used to tag and filter tasks. Drag the handle to reorder.</p>
               <SettingsList
                 items={labels}
+                reorderable
                 addPlaceholder="New label name"
                 onCreate={(data) => api.createLabel(data).then(onChange)}
                 onUpdate={(id, patch) => api.updateLabel(id, patch).then(onChange)}
                 onDelete={(id) => api.deleteLabel(id).then(onChange)}
+                onReorder={(ordered) => Promise.all(ordered.map((item, idx) => api.updateLabel(item.id, { sort_order: idx }))).then(onChange)}
               />
             </>
           )}
@@ -125,13 +127,15 @@ export default function Settings({ statuses, priorities, labels, assignees, proj
           {tab === 'People' && (
             <>
               <h3>People</h3>
-              <p className="settings-hint">Assignees shown as colored initials on tasks.</p>
+              <p className="settings-hint">Assignees shown as colored initials on tasks. Drag the handle to reorder.</p>
               <SettingsList
                 items={assignees}
+                reorderable
                 addPlaceholder="New person's name"
                 onCreate={(data) => api.createAssignee(data).then(onChange)}
                 onUpdate={(id, patch) => api.updateAssignee(id, patch).then(onChange)}
                 onDelete={(id) => api.deleteAssignee(id).then(onChange)}
+                onReorder={(ordered) => Promise.all(ordered.map((item, idx) => api.updateAssignee(item.id, { sort_order: idx }))).then(onChange)}
               />
             </>
           )}
