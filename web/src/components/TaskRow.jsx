@@ -27,6 +27,9 @@ export default function TaskRow({ task, priorities, onToggleComplete, onOpenTask
               {formatDueDate(task.due_date)}
             </span>
           )}
+          {task.subtask_count > 0 && (
+            <span className="chip">☑ {task.subtask_completed_count}/{task.subtask_count}</span>
+          )}
           {task.labels.map((l) => (
             <span key={l.name} className="chip label-chip" style={{ background: (l.color || '#94a3b8') + '26', color: l.color }}>{l.name}</span>
           ))}

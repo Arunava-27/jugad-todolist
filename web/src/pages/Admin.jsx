@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../lib/api.js';
+import { alertDialog } from '../lib/dialogs.js';
 
 export default function Admin({ currentUserId, onOpenWorkspace }) {
   const [tab, setTab] = useState('Users');
@@ -18,7 +19,7 @@ export default function Admin({ currentUserId, onOpenWorkspace }) {
       await api.adminUpdateUser(u.id, { is_active: !u.is_active });
       refresh();
     } catch (err) {
-      alert(err.message);
+      alertDialog(err.message);
     }
   }
 
@@ -27,7 +28,7 @@ export default function Admin({ currentUserId, onOpenWorkspace }) {
       await api.adminUpdateUser(u.id, { role: u.role === 'admin' ? 'member' : 'admin' });
       refresh();
     } catch (err) {
-      alert(err.message);
+      alertDialog(err.message);
     }
   }
 

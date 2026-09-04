@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { alertDialog } from '../lib/dialogs.js';
 
 // Generic editable list of {id, name, color, ...} rows — used for statuses,
 // priorities, labels and people. Handles inline rename/recolor, delete with
@@ -44,7 +45,7 @@ export default function SettingsList({ items, onCreate, onUpdate, onDelete, onRe
       if (err.status === 409 || /in use/i.test(err.message || '')) {
         setBlocked({ id: item.id, count: err.count, reassignTo: '' });
       } else {
-        alert(err.message || 'Could not delete');
+        alertDialog(err.message || 'Could not delete');
       }
     } finally {
       setBusyId(null);
@@ -57,7 +58,7 @@ export default function SettingsList({ items, onCreate, onUpdate, onDelete, onRe
       await onDelete(item.id, blocked.reassignTo);
       setBlocked(null);
     } catch (err) {
-      alert(err.message || 'Could not delete');
+      alertDialog(err.message || 'Could not delete');
     } finally {
       setBusyId(null);
     }

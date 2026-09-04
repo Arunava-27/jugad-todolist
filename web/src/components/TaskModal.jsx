@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api.js';
+import { confirmDialog } from '../lib/dialogs.js';
+import SubtaskList from './SubtaskList.jsx';
 
 export default function TaskModal({ task, projects, statuses, priorities, onClose, onUpdate, onDelete }) {
   const [attachments, setAttachments] = useState(task.attachments || []);
@@ -178,6 +180,8 @@ export default function TaskModal({ task, projects, statuses, priorities, onClos
           </label>
         </div>
 
+        {!task.parent_task_id && <SubtaskList parentTaskId={task.id} />}
+
         <div className="attachments-section">
           <div className="settings-hint" style={{ marginBottom: 8 }}>Images</div>
           {uploadError && <div className="login-error" style={{ marginBottom: 8 }}>{uploadError}</div>}
@@ -201,7 +205,16 @@ export default function TaskModal({ task, projects, statuses, priorities, onClos
         </div>
 
         <div className="modal-footer">
-          <button className="danger" onClick={() => onDelete(task.id)}>Delete</button>
+          <button
+            className="danger"
+            onClick={async () => {
+              const message = task.subtask_count > 0
+                ? `Delete "${task.title}"? Its ${task.subtask_count} sub-task${task.subtask_count === 1 ? '' : 's'} will be deleted too.`
+                : `Delete "${task.title}"?`;
+              const ok = await confirmDialog(message, { title: 'Delete task', danger: true });
+              if (ok) onDelete(task.id);
+            }}
+          >Delete</button>
           <div className="modal-footer-right">
             <button className="ghost" onClick={onClose}>Cancel</button>
             <button onClick={save} disabled={saving || !form.title.trim()}>{saving ? 'Saving…' : 'Save'}</button>

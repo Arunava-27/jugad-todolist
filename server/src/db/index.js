@@ -48,6 +48,9 @@ if (!hasColumn('projects', 'sort_order')) {
 if (!hasColumn('tasks', 'section_id')) {
   db.exec('ALTER TABLE tasks ADD COLUMN section_id INTEGER REFERENCES sections(id) ON DELETE SET NULL');
 }
+if (!hasColumn('tasks', 'parent_task_id')) {
+  db.exec('ALTER TABLE tasks ADD COLUMN parent_task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE');
+}
 
 // Simple additive columns: safe as a plain ALTER (nullable, backfilled below).
 for (const table of ['projects', 'tasks']) {
@@ -168,6 +171,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_statuses_workspace ON statuses(workspace_id);
   CREATE INDEX IF NOT EXISTS idx_priorities_workspace ON priorities(workspace_id);
   CREATE INDEX IF NOT EXISTS idx_tasks_section ON tasks(section_id);
+  CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_task_id);
 `);
 db.pragma('foreign_keys = ON');
 

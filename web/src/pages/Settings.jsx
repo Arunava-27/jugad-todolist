@@ -3,6 +3,7 @@ import { api } from '../lib/api.js';
 import SettingsList from '../components/SettingsList.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
 import { ACCENT_PRESETS, getTheme, getAccent, setTheme, setAccent } from '../lib/theme.js';
+import { confirmDialog } from '../lib/dialogs.js';
 
 const TABS = ['Appearance', 'Workflow', 'Labels', 'People', 'Members', 'Projects'];
 
@@ -158,9 +159,10 @@ export default function Settings({ statuses, priorities, labels, assignees, proj
                 addPlaceholder="New project name"
                 onCreate={(data) => api.createProject(data).then(onChange)}
                 onUpdate={(id, patch) => api.updateProject(id, patch).then(onChange)}
-                onDelete={(id) => {
+                onDelete={async (id) => {
                   const p = projects.find((x) => x.id === id);
-                  if (!confirm(`Delete "${p?.name}"? Its tasks will move to Inbox, not be deleted.`)) return Promise.resolve();
+                  const ok = await confirmDialog(`Delete "${p?.name}"? Its tasks will move to Inbox, not be deleted.`, { title: 'Delete project', danger: true });
+                  if (!ok) return;
                   return api.deleteProject(id).then(onChange);
                 }}
                 onReorder={(ordered) => Promise.all(ordered.map((item, idx) => api.updateProject(item.id, { sort_order: idx }))).then(onChange)}

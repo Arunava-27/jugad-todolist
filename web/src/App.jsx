@@ -10,6 +10,7 @@ import SectionedTaskList from './components/SectionedTaskList.jsx';
 import BoardView from './components/BoardView.jsx';
 import TaskModal from './components/TaskModal.jsx';
 import QuickAdd from './components/QuickAdd.jsx';
+import DialogHost from './components/DialogHost.jsx';
 import { todayISO } from './lib/format.js';
 
 const ACTIVE_WORKSPACE_KEY = 'jugad-active-workspace';
@@ -291,6 +292,8 @@ export default function App() {
           onDelete={handleDeleteTask}
         />
       )}
+
+      <DialogHost />
     </div>
   );
 }

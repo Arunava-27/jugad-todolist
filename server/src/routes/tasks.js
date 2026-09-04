@@ -55,7 +55,18 @@ function hydrateTask(task) {
   const attachments = db.prepare(
     `SELECT id, original_name, mime_type, size, created_at FROM attachments WHERE task_id = ? ORDER BY created_at`
   ).all(task.id).map((a) => ({ ...a, url: `/api/attachments/${a.id}/file` }));
-  return { ...task, is_completed: !!task.is_completed, labels, assignees, attachments };
+  const subtaskStats = db.prepare(
+    `SELECT COUNT(*) total, COALESCE(SUM(is_completed), 0) completed FROM tasks WHERE parent_task_id = ?`
+  ).get(task.id);
+  return {
+    ...task,
+    is_completed: !!task.is_completed,
+    labels,
+    assignees,
+    attachments,
+    subtask_count: subtaskStats.total,
+    subtask_completed_count: subtaskStats.completed,
+  };
 }
 
 function defaultStatusName(workspaceId) {
@@ -77,7 +88,7 @@ function sectionMatchesProject(sectionId, projectId) {
 }
 
 router.get('/', (req, res) => {
-  const { project_id, status, priority, label, assignee, completed, due_before, due_after, q } = req.query;
+  const { project_id, status, priority, label, assignee, completed, due_before, due_after, q, parent_task_id, include_subtasks } = req.query;
   let sql = 'SELECT DISTINCT t.* FROM tasks t';
   const joins = [];
   const where = ['t.workspace_id = ?'];
@@ -104,6 +115,16 @@ router.get('/', (req, res) => {
   } else if (req.query.section_id) {
     where.push('t.section_id = ?');
     params.push(Number(req.query.section_id));
+  }
+  if (parent_task_id) {
+    // Fetching one task's sub-tasks specifically.
+    where.push('t.parent_task_id = ?');
+    params.push(Number(parent_task_id));
+  } else if (!include_subtasks) {
+    // Every other listing (Today, a project, search, ...) is top-level only
+    // by default — sub-tasks show inside their parent's task modal, not as
+    // their own rows cluttering the main views.
+    where.push('t.parent_task_id IS NULL');
   }
   if (status) {
     where.push('t.status = ?');
@@ -142,26 +163,43 @@ router.get('/:id', (req, res) => {
   res.json(hydrateTask(row));
 });
 
+// Resolves & validates a requested parent task, returning it (or null if
+// none requested). Only one level of nesting is allowed — a sub-task can't
+// itself have sub-tasks — which keeps the UI (a flat checklist inside the
+// parent's modal) simple and unambiguous.
+function resolveParent(parentTaskId, workspaceId) {
+  if (!parentTaskId) return { parent: null, error: null };
+  const parent = db.prepare('SELECT * FROM tasks WHERE id = ? AND workspace_id = ?').get(parentTaskId, workspaceId);
+  if (!parent) return { parent: null, error: 'Parent task not found in this workspace' };
+  if (parent.parent_task_id) return { parent: null, error: 'A sub-task cannot itself have sub-tasks' };
+  return { parent, error: null };
+}
+
 router.post('/', (req, res) => {
   const b = req.body || {};
   if (!b.title || !b.title.trim()) return res.status(400).json({ error: 'title is required' });
 
-  let projectId = b.project_id || null;
-  if (projectId) {
+  const { parent, error: parentError } = resolveParent(b.parent_task_id ? Number(b.parent_task_id) : null, req.workspaceId);
+  if (parentError) return res.status(400).json({ error: parentError });
+
+  // Sub-tasks always live under their parent's project, not shown in any
+  // section list (they're hidden from top-level views anyway).
+  let projectId = parent ? parent.project_id : (b.project_id || null);
+  let sectionId = parent ? null : (b.section_id || null);
+  if (projectId && !parent) {
     const project = db.prepare('SELECT id FROM projects WHERE id = ? AND workspace_id = ?').get(projectId, req.workspaceId);
     if (!project) return res.status(400).json({ error: 'Project not found in this workspace' });
   }
-  const sectionId = b.section_id || null;
   if (sectionId && !sectionMatchesProject(sectionId, projectId)) {
     return res.status(400).json({ error: "section_id must belong to the task's project" });
   }
 
   const info = db.prepare(
-    `INSERT INTO tasks (workspace_id, project_id, section_id, title, description, status, priority, platform, due_date,
+    `INSERT INTO tasks (workspace_id, project_id, section_id, parent_task_id, title, description, status, priority, platform, due_date,
        estimate_hours, version, build_number, link, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
-    req.workspaceId, projectId, sectionId, b.title.trim(), b.description || null, b.status || defaultStatusName(req.workspaceId),
+    req.workspaceId, projectId, sectionId, parent?.id || null, b.title.trim(), b.description || null, b.status || defaultStatusName(req.workspaceId),
     b.priority || null, b.platform || null, b.due_date || null, b.estimate_hours ?? null,
     b.version || null, b.build_number || null, b.link || null, b.sort_order ?? Date.now()
   );
@@ -178,6 +216,16 @@ router.patch('/:id', (req, res) => {
 
   const b = req.body || {};
 
+  if ('parent_task_id' in b && b.parent_task_id) {
+    if (Number(b.parent_task_id) === id) return res.status(400).json({ error: 'A task cannot be its own parent' });
+    const { parent, error: parentError } = resolveParent(Number(b.parent_task_id), req.workspaceId);
+    if (parentError) return res.status(400).json({ error: parentError });
+    const hasOwnSubtasks = db.prepare('SELECT 1 FROM tasks WHERE parent_task_id = ?').get(id);
+    if (hasOwnSubtasks) return res.status(400).json({ error: "This task has its own sub-tasks and can't become one itself" });
+    b.project_id = parent.project_id;
+    b.section_id = null;
+  }
+
   if ('project_id' in b && b.project_id) {
     const project = db.prepare('SELECT id FROM projects WHERE id = ? AND workspace_id = ?').get(b.project_id, req.workspaceId);
     if (!project) return res.status(400).json({ error: 'Project not found in this workspace' });
@@ -193,7 +241,7 @@ router.patch('/:id', (req, res) => {
     b.section_id = null;
   }
 
-  const fields = ['project_id', 'section_id', 'title', 'description', 'status', 'priority', 'platform',
+  const fields = ['project_id', 'section_id', 'parent_task_id', 'title', 'description', 'status', 'priority', 'platform',
     'due_date', 'estimate_hours', 'version', 'build_number', 'link', 'sort_order'];
   const updates = [];
   const values = [];
@@ -246,8 +294,11 @@ router.delete('/:id', (req, res) => {
   const id = Number(req.params.id);
   const existing = db.prepare('SELECT * FROM tasks WHERE id = ? AND workspace_id = ?').get(id, req.workspaceId);
   if (!existing) return res.status(404).json({ error: 'Task not found' });
-  // Attachment rows cascade via FK, but the files on disk don't — clean those up first.
-  const files = db.prepare('SELECT filename FROM attachments WHERE task_id = ?').all(id);
+  // Attachment rows cascade via FK (for this task AND any sub-tasks, which
+  // also cascade-delete), but the files on disk don't — clean those up first.
+  const files = db.prepare(
+    `SELECT filename FROM attachments WHERE task_id IN (SELECT id FROM tasks WHERE id = ? OR parent_task_id = ?)`
+  ).all(id, id);
   db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
   for (const f of files) fs.unlink(path.join(UPLOAD_DIR, f.filename), () => {});
   res.json({ ok: true });

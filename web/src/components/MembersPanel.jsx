@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../lib/api.js';
+import { alertDialog } from '../lib/dialogs.js';
 
 export default function MembersPanel({ workspaceId, currentUserId }) {
   const [members, setMembers] = useState([]);
@@ -34,7 +35,7 @@ export default function MembersPanel({ workspaceId, currentUserId }) {
       await api.removeWorkspaceMember(workspaceId, userId);
       refresh();
     } catch (err) {
-      alert(err.message || 'Could not remove member');
+      alertDialog(err.message || 'Could not remove member');
     }
   }
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../lib/api.js';
+import { confirmDialog } from '../lib/dialogs.js';
 import TaskRow from './TaskRow.jsx';
 
 const NO_SECTION = '__none__';
@@ -41,7 +42,8 @@ export default function SectionedTaskList({
   }
 
   async function deleteSection(section) {
-    if (!confirm(`Delete section "${section.name}"? Its tasks move to (No section), they won't be deleted.`)) return;
+    const ok = await confirmDialog(`Delete section "${section.name}"? Its tasks move to (No section), they won't be deleted.`, { title: 'Delete section', danger: true });
+    if (!ok) return;
     await api.deleteSection(section.id);
     onSectionsChanged();
   }

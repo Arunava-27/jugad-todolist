@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
   project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
   section_id INTEGER REFERENCES sections(id) ON DELETE SET NULL,
+  parent_task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
   notion_url TEXT,
   notion_task_number INTEGER,
   title TEXT NOT NULL,

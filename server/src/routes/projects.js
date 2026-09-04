@@ -10,7 +10,7 @@ router.get('/', (req, res) => {
   ).all(req.workspaceId);
   const counts = db.prepare(
     `SELECT project_id, COUNT(*) as total, SUM(is_completed) as completed
-     FROM tasks WHERE workspace_id = ? GROUP BY project_id`
+     FROM tasks WHERE workspace_id = ? AND parent_task_id IS NULL GROUP BY project_id`
   ).all(req.workspaceId);
   const countMap = Object.fromEntries(counts.map((c) => [c.project_id, c]));
   res.json(rows.map((p) => ({

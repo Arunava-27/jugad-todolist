@@ -77,6 +77,9 @@ export default function BoardView({ tasks, statuses, priorities, loading, onUpda
                     </span>
                   )}
                   {task.due_date && <span className="chip due-chip">{formatDueDate(task.due_date)}</span>}
+                  {task.subtask_count > 0 && (
+                    <span className="chip">☑ {task.subtask_completed_count}/{task.subtask_count}</span>
+                  )}
                 </div>
               </div>
             ))}

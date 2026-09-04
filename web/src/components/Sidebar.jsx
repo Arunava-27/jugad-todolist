@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api.js';
+import { promptDialog } from '../lib/dialogs.js';
 
 const SMART_VIEWS = [
   { type: 'today', icon: '📅', label: 'Today' },
@@ -48,10 +49,10 @@ export default function Sidebar({
     onProjectsChanged();
   }
 
-  function handleWorkspaceSelect(e) {
+  async function handleWorkspaceSelect(e) {
     const val = e.target.value;
     if (val === NEW_WORKSPACE) {
-      const name = prompt('Name for the new workspace:');
+      const name = await promptDialog('Name for the new workspace:', '', { title: 'New workspace' });
       if (name && name.trim()) onCreateWorkspace(name.trim());
       return;
     }
