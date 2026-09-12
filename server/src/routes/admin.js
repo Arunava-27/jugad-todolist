@@ -80,21 +80,33 @@ router.patch('/users/:id', (req, res) => {
 });
 
 router.delete('/users/:id', (req, res) => {
+  // Deleting an account is permanent and irreversible (unlike deactivating,
+  // which any admin+ can already do) — restricted to the organization's
+  // owner only, never an admin, no matter how the request is crafted.
+  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Only the owner can delete a user' });
+
   const id = Number(req.params.id);
   if (id === req.user.id) return res.status(400).json({ error: "You can't delete your own account" });
 
   const target = db.prepare('SELECT * FROM users WHERE id = ? AND organization_id = ?').get(id, req.user.organization_id);
   if (!target) return res.status(404).json({ error: 'User not found' });
-  if (target.role === 'owner' && req.user.role !== 'owner') {
-    return res.status(403).json({ error: 'Only the owner can remove another owner' });
-  }
-  if (target.role === 'owner') {
-    const ownerCount = db.prepare("SELECT COUNT(*) c FROM users WHERE organization_id = ? AND role = 'owner'").get(req.user.organization_id).c;
-    if (ownerCount <= 1) return res.status(400).json({ error: 'The organization needs at least one owner' });
-  }
 
-  // Cascades: workspace_members, invites.invited_by (SET NULL), workspaces.created_by (SET NULL).
-  db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  // The existence/ownership checks above and the delete below run as one
+  // atomic unit — the last-owner check in particular must see the same
+  // count it deletes against. Cascades: workspace_members (removed),
+  // invites and workspaces (kept, invited_by/created_by set to NULL) —
+  // nothing else in the schema references a user, so no task/project data
+  // is touched by deleting one.
+  let blocked = null;
+  db.transaction(() => {
+    if (target.role === 'owner') {
+      const ownerCount = db.prepare("SELECT COUNT(*) c FROM users WHERE organization_id = ? AND role = 'owner'").get(req.user.organization_id).c;
+      if (ownerCount <= 1) { blocked = 'The organization needs at least one owner'; return; }
+    }
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  })();
+
+  if (blocked) return res.status(400).json({ error: blocked });
   res.json({ ok: true });
 });
 

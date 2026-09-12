@@ -1,11 +1,12 @@
 import { Fragment, useEffect, useState, useCallback } from 'react';
 import { api } from '../lib/api.js';
-import { alertDialog, confirmDialog, promptDialog } from '../lib/dialogs.js';
+import { alertDialog, promptDialog } from '../lib/dialogs.js';
 
 const ROLES = ['owner', 'admin', 'manager', 'developer', 'viewer'];
 const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', manager: 'Manager', developer: 'Developer', viewer: 'Viewer' };
 
-export default function Admin({ currentUserId, onOpenWorkspace }) {
+export default function Admin({ currentUserId, currentUserRole, onOpenWorkspace }) {
+  const isOwner = currentUserRole === 'owner';
   const [tab, setTab] = useState('Users');
   const [users, setUsers] = useState([]);
   const [workspaces, setWorkspaces] = useState([]);
@@ -63,11 +64,18 @@ export default function Admin({ currentUserId, onOpenWorkspace }) {
   }
 
   async function deleteUser(u) {
-    const ok = await confirmDialog(
-      `Permanently delete ${u.name} (${u.email})? This removes their account and every workspace membership — it can't be undone.`,
-      { title: 'Delete user', danger: true }
+    if (!isOwner) return; // belt-and-suspenders — the button itself is hidden for non-owners
+    const scope = u.workspace_count > 0 ? ` and remove them from ${u.workspace_count} workspace${u.workspace_count === 1 ? '' : 's'}` : '';
+    const typed = await promptDialog(
+      `This permanently deletes ${u.name}'s account${scope} — it can't be undone. Type their email to confirm:\n${u.email}`,
+      '',
+      { title: 'Delete user' }
     );
-    if (!ok) return;
+    if (typed === null) return;
+    if (typed.trim().toLowerCase() !== u.email.toLowerCase()) {
+      alertDialog("That didn't match their email — nothing was deleted.");
+      return;
+    }
     try {
       await api.adminDeleteUser(u.id);
       if (expandedUserId === u.id) setExpandedUserId(null);
@@ -154,9 +162,11 @@ export default function Admin({ currentUserId, onOpenWorkspace }) {
                           <button className="ghost" disabled={u.id === currentUserId} onClick={() => toggleActive(u)}>
                             {u.is_active ? 'Deactivate' : 'Reactivate'}
                           </button>
-                          <button className="ghost danger-hover" disabled={u.id === currentUserId} onClick={() => deleteUser(u)}>
-                            Delete
-                          </button>
+                          {isOwner && (
+                            <button className="ghost danger-hover" disabled={u.id === currentUserId} onClick={() => deleteUser(u)}>
+                              Delete
+                            </button>
+                          )}
                         </td>
                       </tr>
                       {expandedUserId === u.id && (

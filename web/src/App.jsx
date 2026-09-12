@@ -337,6 +337,7 @@ export default function App() {
         ) : view.type === 'admin' ? (
           <Admin
             currentUserId={user.id}
+            currentUserRole={user.role}
             onOpenWorkspace={(id) => { switchWorkspace(id); setView({ type: 'today' }); }}
           />
         ) : (
