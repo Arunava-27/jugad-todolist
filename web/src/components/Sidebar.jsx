@@ -6,6 +6,7 @@ import Icon, { Logo } from './Icon.jsx';
 const SMART_VIEWS = [
   { type: 'today', icon: 'calendar', label: 'Today' },
   { type: 'upcoming', icon: 'compass', label: 'Upcoming' },
+  { type: 'mine', icon: 'user', label: 'Assigned to me' },
   { type: 'inbox', icon: 'inbox', label: 'Inbox' },
   { type: 'all', icon: 'grid', label: 'All tasks' },
 ];

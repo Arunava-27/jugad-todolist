@@ -42,6 +42,7 @@ export default function App() {
   const [view, setView] = useState({ type: 'today' });
   const [activeTask, setActiveTask] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [memberFilter, setMemberFilter] = useState(null); // person filter for All tasks / a project — see loadTasks
   const preSearchViewRef = useRef({ type: 'today' });
 
   const [inviteToken] = useState(() => new URLSearchParams(window.location.search).get('invite'));
@@ -139,6 +140,9 @@ export default function App() {
     } else if (view.type === 'upcoming') {
       params.due_after = todayISO();
       params.completed = '0';
+    } else if (view.type === 'mine') {
+      params.member_id = user.id;
+      params.completed = '0';
     } else if (view.type === 'inbox') {
       params.project_id = 'none';
     } else if (view.type === 'project') {
@@ -148,8 +152,14 @@ export default function App() {
     } else if (view.type === 'search') {
       params.q = view.q;
     }
+    // The person filter only applies to the two views broad enough to need
+    // narrowing by who — a smart view like Today is already "mine" in spirit
+    // for due dates, and Assigned to me is already filtered to one person.
+    if (memberFilter && (view.type === 'all' || view.type === 'project')) {
+      params.member_id = memberFilter;
+    }
     api.listTasks(params).then(setTasks).catch(() => {}).finally(() => setLoadingTasks(false));
-  }, [user, activeWorkspaceId, view]);
+  }, [user, activeWorkspaceId, view, memberFilter]);
 
   useEffect(() => {
     loadTasks();
@@ -225,6 +235,7 @@ export default function App() {
   const VIEW_META = {
     today: { icon: 'calendar', label: 'Today' },
     upcoming: { icon: 'compass', label: 'Upcoming' },
+    mine: { icon: 'user', label: 'Assigned to me' },
     inbox: { icon: 'inbox', label: 'Inbox' },
     all: { icon: 'grid', label: 'All tasks' },
     settings: { icon: 'gear', label: 'Settings' },
@@ -308,7 +319,7 @@ export default function App() {
         projects={projects}
         labels={labels}
         view={view}
-        onSelectView={(v) => { setView(v); setSidebarOpen(false); }}
+        onSelectView={(v) => { setView(v); setSidebarOpen(false); setMemberFilter(null); }}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onLogout={handleLogout}
@@ -326,6 +337,17 @@ export default function App() {
             <span className="chip status-chip" style={{ background: stageColor(currentProject.status) + '26', color: stageColor(currentProject.status) }}>
               {currentProject.status}
             </span>
+          )}
+          {(view.type === 'all' || view.type === 'project') && members.length > 0 && (
+            <select
+              className="member-filter"
+              value={memberFilter || ''}
+              onChange={(e) => setMemberFilter(e.target.value ? Number(e.target.value) : null)}
+              title="Filter by assignee"
+            >
+              <option value="">Everyone</option>
+              {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
           )}
           {view.type === 'project' && (
             <div className="view-toggle">

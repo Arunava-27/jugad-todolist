@@ -132,6 +132,7 @@ export default function Admin({ currentUserId, currentUserRole, onOpenWorkspace 
                 Manage roles, team labels and per-workspace access across the organization. Open a row to
                 scope exactly which workspaces someone can reach and at what role.
               </p>
+              <div className="admin-table-wrap">
               <table className="admin-table">
                 <thead>
                   <tr><th>Name</th><th>Email</th><th>Role</th><th>Domain</th><th>Workspaces</th><th>Status</th><th></th></tr>
@@ -203,6 +204,7 @@ export default function Admin({ currentUserId, currentUserRole, onOpenWorkspace 
                   ))}
                 </tbody>
               </table>
+              </div>
             </>
           )}
 
@@ -210,6 +212,7 @@ export default function Admin({ currentUserId, currentUserRole, onOpenWorkspace 
             <>
               <h3>All workspaces</h3>
               <p className="settings-hint">Every workspace in this organization. As owner you can open any of them from the sidebar switcher.</p>
+              <div className="admin-table-wrap">
               <table className="admin-table">
                 <thead>
                   <tr><th>Name</th><th>Members</th><th>Tasks</th><th>Created</th><th></th></tr>
@@ -228,6 +231,7 @@ export default function Admin({ currentUserId, currentUserRole, onOpenWorkspace 
                   ))}
                 </tbody>
               </table>
+              </div>
             </>
           )}
 

@@ -197,6 +197,7 @@ export default function TaskModal({ task, projects, statuses, priorities, member
                 >
                   <span className="avatar" style={{ background: colorForPerson(m.name) }}>{initials(m.name)}</span>
                   {m.name}
+                  {m.domain_name && <span className="domain-tag" style={{ color: m.domain_color, borderColor: m.domain_color }}>{m.domain_name}</span>}
                 </button>
               ))}
             </div>

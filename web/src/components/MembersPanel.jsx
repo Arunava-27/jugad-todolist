@@ -83,7 +83,10 @@ export default function MembersPanel({ workspaceId, currentUserId }) {
           <div className="settings-row" key={m.id}>
             <span className="avatar" style={{ background: 'var(--accent)' }}>{m.name.slice(0, 2).toUpperCase()}</span>
             <div style={{ flex: 1 }}>
-              <div>{m.name} {m.id === currentUserId && <span className="settings-hint">(you)</span>}</div>
+              <div>
+                {m.name} {m.id === currentUserId && <span className="settings-hint">(you)</span>}
+                {m.domain_name && <span className="domain-tag" style={{ color: m.domain_color, borderColor: m.domain_color }}>{m.domain_name}</span>}
+              </div>
               <div className="settings-hint" style={{ margin: 0 }}>{m.email}</div>
             </div>
             <select value={m.role} onChange={(e) => changeRole(m.id, e.target.value)} title="Role">

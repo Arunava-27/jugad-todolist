@@ -164,6 +164,12 @@ const PATHS = {
       <line x1="12" y1="6.7" x2="12" y2="19.7" />
     </>
   ),
+  user: (
+    <>
+      <circle cx="12" cy="8.3" r="3.3" />
+      <path d="M5 19.5c0-3.6 3.1-6.3 7-6.3s7 2.7 7 6.3" strokeLinejoin="round" />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = 17, filled = false, className = '', style }) {

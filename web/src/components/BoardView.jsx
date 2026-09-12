@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatDueDate, colorFor } from '../lib/format.js';
+import { formatDueDate, colorFor, colorForPerson, initials } from '../lib/format.js';
 import Icon from './Icon.jsx';
 
 export default function BoardView({ tasks, statuses, priorities, loading, onUpdateTask, onOpenTask, onReorderStatuses }) {
@@ -83,7 +83,17 @@ export default function BoardView({ tasks, statuses, priorities, loading, onUpda
                   {task.subtask_count > 0 && (
                     <span className="chip"><Icon name="check" size={11} /> {task.subtask_completed_count}/{task.subtask_count}</span>
                   )}
+                  {task.labels.map((l) => (
+                    <span key={l.name} className="chip label-chip" style={{ background: (l.color || '#94a3b8') + '26', color: l.color }}>{l.name}</span>
+                  ))}
                 </div>
+                {task.members.length > 0 && (
+                  <div className="task-assignees board-card-assignees">
+                    {task.members.map((m) => (
+                      <span key={m.id} className="avatar" style={{ background: colorForPerson(m.name) }} title={m.name}>{initials(m.name)}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

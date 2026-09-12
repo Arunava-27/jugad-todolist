@@ -228,6 +228,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 }
 .main-header h2 { margin: 0; font-size: 19px; font-weight: 600; flex: 1; }
 .hamburger { display: none; background: none; border: none; }
+.member-filter { font-size: 13px; padding: 6px 9px; }
 .view-toggle { display: flex; gap: 2px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 2px; }
 .view-toggle button { background: none; border: none; padding: 5px 13px; color: var(--ink-soft); border-radius: 3px; font-size: 13px; }
 .view-toggle button.active { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
@@ -300,6 +301,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   width: 23px; height: 23px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 10px;
   font-family: var(--font-mono); display: flex; align-items: center; justify-content: center; font-weight: 600;
 }
+.domain-tag {
+  font-family: var(--font-mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.02em;
+  border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; margin-left: 7px; white-space: nowrap;
+}
 
 /* ---------- Board view ---------- */
 .board-view { display: flex; gap: 14px; padding: 14px 28px 40px; overflow-x: auto; flex: 1; align-items: flex-start; }
@@ -320,6 +325,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   border-radius: var(--radius-sm); padding: 10px 11px; cursor: grab;
 }
 .board-card-title { font-size: 13.5px; margin-bottom: 6px; }
+.board-card-assignees { margin-top: 7px; }
+.board-card-assignees .avatar { width: 20px; height: 20px; font-size: 9px; }
 
 /* ---------- Modal ---------- */
 .modal-scrim {
@@ -466,7 +473,8 @@ button.ghost { background: none; border: 1px solid var(--line); padding: 8px 14p
 .reassign-inline select { flex: 1; }
 
 /* ---------- Admin ---------- */
-.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-table-wrap { overflow-x: auto; }
+.admin-table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 13px; }
 .admin-table th {
   text-align: left; font-weight: 600; color: var(--ink-soft); font-size: 12px;
   padding: 8px; border-bottom: 1px solid var(--line);

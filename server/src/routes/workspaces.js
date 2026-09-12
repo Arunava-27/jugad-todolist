@@ -68,8 +68,8 @@ router.get('/:id/members', (req, res) => {
   if (!role) return res.status(403).json({ error: 'Not a member of this workspace' });
 
   const members = db.prepare(
-    `SELECT u.id, u.name, u.email, wm.role
-     FROM workspace_members wm JOIN users u ON u.id = wm.user_id
+    `SELECT u.id, u.name, u.email, wm.role, d.name as domain_name, d.color as domain_color
+     FROM workspace_members wm JOIN users u ON u.id = wm.user_id LEFT JOIN domains d ON d.id = u.domain_id
      WHERE wm.workspace_id = ? ORDER BY wm.role = 'owner' DESC, wm.role = 'admin' DESC, u.name COLLATE NOCASE`
   ).all(id);
 
