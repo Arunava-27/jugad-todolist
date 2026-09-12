@@ -59,6 +59,8 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd /opt/jugad-todolist
+            git fetch origin main -q
+            git reset --hard origin/main -q
             docker compose pull --policy always app
             docker compose up -d
             docker image prune -f
