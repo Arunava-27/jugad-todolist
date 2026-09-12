@@ -31,7 +31,7 @@ export default function Guides({ isOwnerOrAdmin }) {
               <ol>
                 <li><strong>Organization</strong> — your whole company. You get one by registering without an invite link; you become its owner.</li>
                 <li><strong>Workspace</strong> — a team or area within the org (e.g. "Engineering", "Marketing"). Only the owner creates workspaces, from the sidebar's workspace switcher.</li>
-                <li><strong>Project</strong> — a body of work inside a workspace (e.g. "Website Revamp"). Projects have a color, an optional <a href="#" onClick={(e) => { e.preventDefault(); setTopic('Customizing your workflow'); }}>lifecycle stage</a>, and can be archived without deleting anything.</li>
+                <li><strong>Project</strong> — a body of work inside a workspace (e.g. "Website Revamp"). Opening one lands you on its <strong>Overview</strong> — description, <a href="#" onClick={(e) => { e.preventDefault(); setTopic('Customizing your workflow'); }}>stage</a>, timeline, progress, team, and stakeholders — with List and Board one click away.</li>
                 <li><strong>Task</strong> — the actual work. Belongs to a project (or sits in the Inbox with no project), can have a due date, priority, labels, assignees, sub-tasks, and attachments.</li>
               </ol>
 
@@ -73,14 +73,20 @@ export default function Guides({ isOwnerOrAdmin }) {
               <p>Open a task and use the checklist inside its modal to break it into steps. Sub-tasks are lightweight — a title and a checkbox, no separate status/priority of their own — and stay tucked inside their parent rather than cluttering the main list.</p>
 
               <h3>Assignees &amp; attachments</h3>
-              <p>Assign a task to real teammates from the task modal — click their name to toggle them on or off. Drop image attachments onto a task from the same modal; they show as thumbnails.</p>
+              <p>Assign a task to real teammates from the task modal — click their name to toggle them on or off (their domain, if they have one, shows right on the chip). Drop image attachments onto a task from the same modal; they show as thumbnails.</p>
+
+              <h3>Finding what's assigned to you</h3>
+              <p>The sidebar's <strong>Assigned to me</strong> smart view shows only your own open tasks across every project. On <strong>All tasks</strong> or inside a project, the "Everyone" dropdown at the top of the page narrows the list to one person at a time.</p>
             </>
           )}
 
           {topic === 'List & board views' && (
             <>
-              <h3>Two ways to look at the same tasks</h3>
-              <p>Open any project and switch between <strong>List</strong> and <strong>Board</strong> at the top of the page — same underlying tasks, different shape.</p>
+              <h3>Three ways to look at a project</h3>
+              <p>Open any project and switch between <strong>Overview</strong>, <strong>List</strong>, and <strong>Board</strong> at the top of the page — Overview is where you land; List and Board show the same underlying tasks in different shapes.</p>
+
+              <h4>Overview</h4>
+              <p>The project's home screen — description, stage, timeline, a progress bar, who's on the team, and who has stakeholder access, all editable right there. See "Getting started".</p>
 
               <h4>List view</h4>
               <p>Tasks grouped into <strong>sections</strong> you define (e.g. "Backlog", "In Review") — independent of status. Drag a task between sections, or drag the section handles to reorder them, from Settings or directly in the list.</p>
@@ -89,7 +95,7 @@ export default function Guides({ isOwnerOrAdmin }) {
               <p>A Kanban board with one column per <strong>status</strong> (Not started / In progress / Done, or whatever you've customized them to — see "Customizing your workflow"). Drag a card to a different column to change its status; drag a column to reorder it.</p>
 
               <h4>Smart views</h4>
-              <p>The sidebar's <strong>Today</strong>, <strong>Upcoming</strong>, <strong>Inbox</strong>, and <strong>All tasks</strong> cut across every project — Today shows anything due on or before today, Inbox shows tasks with no project.</p>
+              <p>The sidebar's <strong>Today</strong>, <strong>Upcoming</strong>, <strong>Assigned to me</strong>, <strong>Inbox</strong>, and <strong>All tasks</strong> cut across every project — Today shows anything due on or before today, Inbox shows tasks with no project.</p>
             </>
           )}
 
@@ -105,7 +111,8 @@ export default function Guides({ isOwnerOrAdmin }) {
               <p>Settings → Projects. Rename, recolor, reorder, archive (hides it from the sidebar without deleting anything), or delete (its tasks move to the Inbox, they're never deleted with the project).</p>
 
               <h4>Project stage</h4>
-              <p>Each project also carries a lifecycle stage — <strong>Planning → Active → On Hold → Testing → Launched</strong> — set from the same Projects list. It's shown as a badge at the top of the project view. This is separate from both task statuses (which drive the board columns) and the Archived flag (which just controls sidebar visibility).</p>
+              <p>Each project also carries a lifecycle stage — <strong>Planning → Active → On Hold → Testing → Launched</strong> — set from the same Projects list, or from the project's own Overview. It's shown as a badge at the top of the project view. This is separate from both task statuses (which drive the board columns) and the Archived flag (which just controls sidebar visibility).</p>
+              <p>Description, start/target dates, team, and stakeholders aren't in Settings at all — those live on the project's own <strong>Overview</strong> tab (see "List &amp; board views").</p>
             </>
           )}
 
@@ -135,7 +142,7 @@ export default function Guides({ isOwnerOrAdmin }) {
               <p>A stakeholder isn't a workspace member — they're scoped to a single project, and see only its stage, dates, progress, and team, never individual tasks, descriptions, or attachments. Use this for a client, an executive, or anyone who needs "where do things stand" without the working detail.</p>
 
               <h4>Adding one</h4>
-              <p>Open Settings → Stakeholders, expand the project, and add an email. An existing account is added right away; a new email gets an invite that creates an account scoped to just that project — they never see the rest of the workspace.</p>
+              <p>Open the project → Overview and scroll to Stakeholders. An existing account is added right away; a new email gets an invite that creates an account scoped to just that project — they never see the rest of the workspace.</p>
 
               <h4>What a stakeholder sees</h4>
               <p>Signing in takes them straight to a simple read-only dashboard: project name, current stage, timeline, a completion bar, a breakdown by status, and who's on the team — nothing more.</p>

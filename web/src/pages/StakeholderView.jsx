@@ -95,7 +95,7 @@ export default function StakeholderView({ userName, projects, onLogout }) {
                   <div className="settings-hint" style={{ margin: '0 0 6px' }}>Team</div>
                   <div className="task-assignees">
                     {summary.team.map((m) => (
-                      <span key={m.id} className="avatar" style={{ background: colorForPerson(m.name) }} title={m.name}>{initials(m.name)}</span>
+                      <span key={m.id} className="avatar" style={{ background: colorForPerson(m.name) }} title={m.domain_name ? `${m.name} — ${m.domain_name}` : m.name}>{initials(m.name)}</span>
                     ))}
                   </div>
                 </div>

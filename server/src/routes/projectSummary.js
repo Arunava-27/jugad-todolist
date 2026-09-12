@@ -33,10 +33,13 @@ router.get('/:projectId', (req, res) => {
   ).all(projectId);
 
   const team = db.prepare(
-    `SELECT DISTINCT u.id, u.name FROM task_members tm
-     JOIN tasks t ON t.id = tm.task_id JOIN users u ON u.id = tm.user_id
+    `SELECT DISTINCT u.id, u.name, d.name as domain_name, d.color as domain_color
+     FROM task_members tm JOIN tasks t ON t.id = tm.task_id JOIN users u ON u.id = tm.user_id
+     LEFT JOIN domains d ON d.id = u.domain_id
      WHERE t.project_id = ? ORDER BY u.name COLLATE NOCASE`
   ).all(projectId);
+
+  const stakeholderCount = db.prepare('SELECT COUNT(*) c FROM project_stakeholders WHERE project_id = ?').get(projectId).c;
 
   res.json({
     id: project.id,
@@ -51,6 +54,7 @@ router.get('/:projectId', (req, res) => {
     completed_count: counts.completed,
     by_status: byStatus,
     team,
+    stakeholder_count: stakeholderCount,
   });
 });
 

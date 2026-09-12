@@ -78,7 +78,7 @@ export default function Sidebar({
       <button
         key={p.id}
         className={`nav-item ${view.type === 'project' && view.id === p.id ? 'active' : ''}`}
-        onClick={() => onSelectView({ type: 'project', id: p.id, mode: 'list' })}
+        onClick={() => onSelectView({ type: 'project', id: p.id, mode: 'overview' })}
       >
         <span className="dot" style={{ background: p.color }} />
         <span className="nav-item-label">{p.name}</span>

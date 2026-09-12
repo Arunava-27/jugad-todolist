@@ -517,6 +517,26 @@ button.ghost { background: none; border: 1px solid var(--line); padding: 8px 14p
   .stakeholder-list { width: 100%; flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--line); }
 }
 
+/* ---------- Project Overview (a project's "front door" tab) ---------- */
+.project-overview { padding: 20px 28px 60px; max-width: 1040px; }
+.overview-grid { display: flex; gap: 32px; align-items: flex-start; }
+.overview-main { flex: 1; min-width: 0; }
+.overview-side { width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 18px; }
+.overview-field { display: block; margin-bottom: 26px; }
+.overview-field textarea {
+  width: 100%; resize: vertical; font-family: inherit; line-height: 1.5;
+}
+.overview-team { display: flex; flex-direction: column; gap: 8px; }
+.overview-person { display: flex; align-items: center; gap: 9px; font-size: 13.5px; }
+.overview-stat { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; background: var(--panel); }
+.overview-stat select, .overview-stat input[type="date"] { width: 100%; }
+.overview-label { font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); margin-bottom: 7px; }
+@media (max-width: 720px) {
+  .overview-grid { flex-direction: column; }
+  .overview-side { width: 100%; flex-direction: row; flex-wrap: wrap; }
+  .overview-stat { flex: 1; min-width: 140px; }
+}
+
 /* ---------- Landing (logged-out marketing page) ---------- */
 .landing { background: var(--paper); color: var(--ink); min-height: 100vh; }
 .landing-wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px; }

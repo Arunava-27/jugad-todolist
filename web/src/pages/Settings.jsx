@@ -2,17 +2,14 @@ import { useState } from 'react';
 import { api } from '../lib/api.js';
 import SettingsList from '../components/SettingsList.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
-import ProjectStakeholders from '../components/ProjectStakeholders.jsx';
-import Icon from '../components/Icon.jsx';
 import { ACCENT_PRESETS, getTheme, getAccent, setTheme, setAccent } from '../lib/theme.js';
 import { PROJECT_STAGES } from '../lib/projectStages.js';
 import { confirmDialog } from '../lib/dialogs.js';
 
-const TABS = ['Appearance', 'Workflow', 'Labels', 'Members', 'Projects', 'Stakeholders'];
+const TABS = ['Appearance', 'Workflow', 'Labels', 'Members', 'Projects'];
 
 export default function Settings({ statuses, priorities, labels, projects, workspaceId, currentUserId, onChange }) {
   const [tab, setTab] = useState('Appearance');
-  const [expandedProjectId, setExpandedProjectId] = useState(null);
   const [theme, setThemeState] = useState(getTheme());
   const [accent, setAccentState] = useState(getAccent());
 
@@ -166,38 +163,10 @@ export default function Settings({ statuses, priorities, labels, projects, works
                   </>
                 )}
               />
-            </>
-          )}
-
-          {tab === 'Stakeholders' && (
-            <>
-              <h3>Stakeholders</h3>
-              <p className="settings-hint">
-                Grant someone read-only, high-level visibility into ONE project — stage, dates, progress,
-                who's on it — without adding them to this workspace at all. Open a project to manage who
-                has that access.
+              <p className="settings-hint" style={{ marginTop: 4 }}>
+                Description, dates, team, and stakeholders are managed from a project's own Overview tab —
+                open the project to edit those.
               </p>
-              <div className="settings-list">
-                {projects.map((p) => (
-                  <div key={p.id}>
-                    <button
-                      className="settings-row"
-                      style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }}
-                      onClick={() => setExpandedProjectId((cur) => (cur === p.id ? null : p.id))}
-                    >
-                      <span className="dot" style={{ background: p.color }} />
-                      <span style={{ flex: 1 }}>{p.name}</span>
-                      <Icon name="chevron" size={14} style={{ transform: expandedProjectId === p.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
-                    </button>
-                    {expandedProjectId === p.id && (
-                      <div className="admin-scope-cell">
-                        <ProjectStakeholders projectId={p.id} />
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {projects.length === 0 && <div className="settings-hint">No projects in this workspace yet.</div>}
-              </div>
             </>
           )}
         </div>

@@ -9,6 +9,7 @@ import StakeholderView from './pages/StakeholderView.jsx';
 import Settings from './pages/Settings.jsx';
 import Admin from './pages/Admin.jsx';
 import Guides from './pages/Guides.jsx';
+import ProjectOverview from './pages/ProjectOverview.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import TaskList from './components/TaskList.jsx';
 import SectionedTaskList from './components/SectionedTaskList.jsx';
@@ -338,7 +339,7 @@ export default function App() {
               {currentProject.status}
             </span>
           )}
-          {(view.type === 'all' || view.type === 'project') && members.length > 0 && (
+          {(view.type === 'all' || (view.type === 'project' && view.mode !== 'overview')) && members.length > 0 && (
             <select
               className="member-filter"
               value={memberFilter || ''}
@@ -352,7 +353,11 @@ export default function App() {
           {view.type === 'project' && (
             <div className="view-toggle">
               <button
-                className={view.mode !== 'board' ? 'active' : ''}
+                className={!view.mode || view.mode === 'overview' ? 'active' : ''}
+                onClick={() => setView({ ...view, mode: 'overview' })}
+              >Overview</button>
+              <button
+                className={view.mode === 'list' ? 'active' : ''}
                 onClick={() => setView({ ...view, mode: 'list' })}
               >List</button>
               <button
@@ -381,6 +386,14 @@ export default function App() {
           />
         ) : view.type === 'guides' ? (
           <Guides isOwnerOrAdmin={user.role === 'owner' || user.role === 'admin'} />
+        ) : view.type === 'project' && (!view.mode || view.mode === 'overview') ? (
+          currentProject && (
+            <ProjectOverview
+              project={currentProject}
+              readOnly={isViewer}
+              onProjectChanged={refreshLookups}
+            />
+          )
         ) : (
           <>
             <QuickAdd onCreate={handleCreateTask} projects={projects} priorities={priorities} readOnly={isViewer} />
