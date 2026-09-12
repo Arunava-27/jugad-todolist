@@ -21,7 +21,7 @@ const FEATURES = [
   {
     icon: 'gear',
     title: 'Every workflow, editable',
-    body: "Rename, recolor, and reorder every status, priority, label, and person. It's your workflow, not a template you adapt to.",
+    body: "Rename, recolor, and reorder every status, priority, and label. It's your workflow, not a template you adapt to.",
   },
   {
     icon: 'users',
