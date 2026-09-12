@@ -66,7 +66,7 @@ export default function Dashboard({ onOpenProject }) {
           ) : (
             <div className="settings-list">
               {data.overdue_by_project.map((p) => (
-                <button key={p.id} className="settings-row dashboard-clickable-row" onClick={() => onOpenProject(p.id)}>
+                <button key={p.id ?? 'inbox'} className="settings-row dashboard-clickable-row" onClick={() => onOpenProject(p.id)}>
                   <span style={{ flex: 1 }}>{p.name}</span>
                   <span className="chip due-chip overdue">{p.count} overdue</span>
                 </button>

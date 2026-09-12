@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { formatDueDate, colorFor, colorForPerson, initials } from '../lib/format.js';
 import Icon from './Icon.jsx';
 
-export default function BoardView({ tasks, statuses, priorities, loading, onUpdateTask, onOpenTask, onReorderStatuses }) {
+export default function BoardView({ tasks, statuses, priorities, loading, onUpdateTask, onOpenTask, onReorderStatuses, canManage }) {
   const [dragOverStatus, setDragOverStatus] = useState(null);
   const [dragColumnStatus, setDragColumnStatus] = useState(null);
 
@@ -54,12 +54,12 @@ export default function BoardView({ tasks, statuses, priorities, loading, onUpda
         >
           <div
             className="board-column-title"
-            draggable
-            onDragStart={() => setDragColumnStatus(col.status)}
-            onDragEnd={() => setDragColumnStatus(null)}
-            title="Drag to reorder columns"
+            draggable={canManage}
+            onDragStart={canManage ? () => setDragColumnStatus(col.status) : undefined}
+            onDragEnd={canManage ? () => setDragColumnStatus(null) : undefined}
+            title={canManage ? 'Drag to reorder columns' : undefined}
           >
-            <span className="drag-handle"><Icon name="grip" size={14} /></span>
+            {canManage && <span className="drag-handle"><Icon name="grip" size={14} /></span>}
             {col.status} <span className="nav-count">{col.tasks.length}</span>
           </div>
           <div className="board-column-body">

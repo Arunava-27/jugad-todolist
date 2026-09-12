@@ -196,8 +196,12 @@ if (hasTable('assignees')) {
 if (!hasColumn('users', 'organization_id')) {
   db.exec('ALTER TABLE users ADD COLUMN organization_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE');
 }
-if (!hasColumn('users', 'team')) {
-  db.exec('ALTER TABLE users ADD COLUMN team TEXT');
+// `users.team` (free-text) was replaced by `domain_id` and no route has read
+// or written it since — drop it if a pre-2026-09 database still has it.
+// Confirmed empty on every row in production before this migration shipped;
+// a fresh install never gets the column at all (see schema.sql).
+if (hasColumn('users', 'team')) {
+  db.exec('ALTER TABLE users DROP COLUMN team');
 }
 if (!hasColumn('users', 'domain_id')) {
   db.exec('ALTER TABLE users ADD COLUMN domain_id INTEGER REFERENCES domains(id) ON DELETE SET NULL');

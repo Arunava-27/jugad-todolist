@@ -93,12 +93,16 @@ export default function App() {
     try {
       await api.acceptInvite(inviteToken);
       applyAuthResult(await api.me());
+      // Only dismiss the invite screen on success — dismissing unconditionally
+      // (the old behavior) hid this exact error message the moment it was
+      // set, dropping a just-registered person into the app with no
+      // workspace/project membership and no explanation of what went wrong.
+      dismissInvite();
     } catch (err) {
       setInviteError(err.message || 'Could not accept invite');
       applyAuthResult(authResult);
     } finally {
       setAccepting(false);
-      dismissInvite();
     }
   }
 
@@ -236,7 +240,12 @@ export default function App() {
   // The org owner always has full access to every workspace even without an
   // explicit workspace_members row (e.g. opened via Admin's "Open" link) —
   // activeWorkspaceRole is undefined in that case, so fall back to the org role.
-  const canSeeDashboard = ['owner', 'admin', 'manager'].includes(activeWorkspaceRole) || user.role === 'owner';
+  // Same threshold the backend enforces for projects/sections/statuses/
+  // priorities/task-deletion (see server/src/routes/*.js) — kept as two
+  // names since dashboard visibility and management rights are different
+  // concerns that happen to share a bar today.
+  const canManage = ['owner', 'admin', 'manager'].includes(activeWorkspaceRole) || user.role === 'owner';
+  const canSeeDashboard = canManage;
 
   const VIEW_META = {
     today: { icon: 'calendar', label: 'Today' },
@@ -331,6 +340,7 @@ export default function App() {
         onClose={() => setSidebarOpen(false)}
         onLogout={handleLogout}
         readOnly={isViewer}
+        canManage={canManage}
         canSeeDashboard={canSeeDashboard}
         onProjectsChanged={refreshLookups}
         searchQuery={view.type === 'search' ? view.q : ''}
@@ -383,6 +393,7 @@ export default function App() {
             projects={projects}
             workspaceId={activeWorkspaceId}
             currentUserId={user.id}
+            canManage={canManage}
             onChange={refreshLookups}
           />
         ) : view.type === 'admin' ? (
@@ -394,12 +405,15 @@ export default function App() {
         ) : view.type === 'guides' ? (
           <Guides isOwnerOrAdmin={user.role === 'owner' || user.role === 'admin'} />
         ) : view.type === 'dashboard' ? (
-          <Dashboard onOpenProject={(id) => setView({ type: 'project', id, mode: 'overview' })} />
+          // id is null for the Dashboard's "Inbox" overdue bucket (tasks with
+          // no project) — that has no project overview to open, so send it to
+          // the Inbox smart view instead.
+          <Dashboard onOpenProject={(id) => setView(id ? { type: 'project', id, mode: 'overview' } : { type: 'inbox' })} />
         ) : view.type === 'project' && (!view.mode || view.mode === 'overview') ? (
           currentProject && (
             <ProjectOverview
               project={currentProject}
-              readOnly={isViewer}
+              readOnly={!canManage}
               onProjectChanged={refreshLookups}
             />
           )
@@ -415,6 +429,7 @@ export default function App() {
                 loading={loadingTasks}
                 onUpdateTask={handleUpdateTask}
                 onOpenTask={setActiveTask}
+                canManage={canManage}
                 onReorderStatuses={(ordered) => Promise.all(ordered.map((s, idx) => api.updateStatus(s.id, { sort_order: idx }))).then(refreshLookups)}
               />
             ) : view.type === 'project' ? (
@@ -428,6 +443,7 @@ export default function App() {
                 onOpenTask={setActiveTask}
                 onTaskMoved={handleTaskMoved}
                 onSectionsChanged={loadSections}
+                canManage={canManage}
               />
             ) : (
               <TaskList
@@ -450,6 +466,8 @@ export default function App() {
           priorities={priorities}
           members={members}
           currentUserId={user.id}
+          canManage={canManage}
+          readOnly={isViewer}
           onClose={() => setActiveTask(null)}
           onUpdate={handleUpdateTask}
           onDelete={handleDeleteTask}

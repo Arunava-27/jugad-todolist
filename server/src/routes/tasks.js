@@ -2,7 +2,7 @@ import { Router } from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
 import db, { DATA_DIR } from '../db/index.js';
-import { roleFor } from '../lib/permissions.js';
+import { roleFor, atLeast } from '../lib/permissions.js';
 
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 
@@ -41,6 +41,17 @@ function setTaskMembers(workspaceId, taskId, userIds) {
     if (!user || !roleFor(user, workspaceId)) continue;
     insert.run(taskId, userId);
   }
+}
+
+// Assigning a task to someone else is a manager+ action (the same tier that
+// runs projects/sections) — but assigning or unassigning *yourself* stays
+// open to everyone non-viewer, since self-service pickup ("I'll take this")
+// shouldn't need a manager in the loop. Only true additions/removals of
+// someone other than the requester trigger the higher bar.
+function requiresManagerForAssignment(userId, requestedIds, currentIds) {
+  const adds = requestedIds.filter((uid) => !currentIds.includes(uid));
+  const removes = currentIds.filter((uid) => !requestedIds.includes(uid));
+  return [...adds, ...removes].some((uid) => uid !== userId);
 }
 
 // System-logged change history + human comments, interleaved on one
@@ -199,6 +210,13 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: "section_id must belong to the task's project" });
   }
 
+  if (b.member_ids) {
+    const requestedIds = Array.isArray(b.member_ids) ? b.member_ids.map(Number) : [];
+    if (requiresManagerForAssignment(req.user.id, requestedIds, []) && !atLeast(req.workspaceRole, 'manager')) {
+      return res.status(403).json({ error: 'Only a manager, admin, or owner can assign this task to someone else' });
+    }
+  }
+
   const info = db.prepare(
     `INSERT INTO tasks (workspace_id, project_id, section_id, parent_task_id, title, description, status, priority, platform, due_date,
        estimate_hours, version, build_number, link, sort_order)
@@ -221,6 +239,19 @@ router.patch('/:id', (req, res) => {
   if (!existing) return res.status(404).json({ error: 'Task not found' });
 
   const b = req.body || {};
+
+  // Captured up front (before any writes) so it can both gate the
+  // manager-only "assigning someone else" check below and, later, drive the
+  // added/removed activity-log diff without re-querying.
+  const oldMemberIds = 'member_ids' in b
+    ? db.prepare('SELECT user_id FROM task_members WHERE task_id = ?').all(id).map((r) => r.user_id)
+    : [];
+  if ('member_ids' in b) {
+    const requestedIds = Array.isArray(b.member_ids) ? b.member_ids.map(Number) : [];
+    if (requiresManagerForAssignment(req.user.id, requestedIds, oldMemberIds) && !atLeast(req.workspaceRole, 'manager')) {
+      return res.status(403).json({ error: 'Only a manager, admin, or owner can assign this task to someone else — you can still assign or unassign yourself' });
+    }
+  }
 
   if ('parent_task_id' in b && b.parent_task_id) {
     if (Number(b.parent_task_id) === id) return res.status(400).json({ error: 'A task cannot be its own parent' });
@@ -286,13 +317,6 @@ router.patch('/:id', (req, res) => {
   updates.push('updated_at = ?');
   values.push(new Date().toISOString());
 
-  // Captured before the writes below so activity logging can diff old vs
-  // new without re-deriving every branch's logic (is_completed in
-  // particular can come from an explicit flag or be derived from status).
-  const oldMemberIds = 'member_ids' in b
-    ? db.prepare('SELECT user_id FROM task_members WHERE task_id = ?').all(id).map((r) => r.user_id)
-    : [];
-
   if (updates.length) {
     values.push(id);
     db.prepare(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`).run(...values);
@@ -337,6 +361,17 @@ router.delete('/:id', (req, res) => {
   const id = Number(req.params.id);
   const existing = db.prepare('SELECT * FROM tasks WHERE id = ? AND workspace_id = ?').get(id, req.workspaceId);
   if (!existing) return res.status(404).json({ error: 'Task not found' });
+  // Deleting a real task is permanent and there's no "creator" tracked to
+  // grant an exception for (the earliest task_activity 'created' row isn't
+  // reliable for tasks made before that feature shipped) — manager+ only,
+  // same tier as every other permanent delete in the app (projects, sections,
+  // workspaces). A sub-task is different: it's a lightweight checklist item
+  // ("a title and a checkbox", per the Guides) that lives and dies with
+  // whoever's working the parent task, so removing one stays open to anyone
+  // non-viewer, same as toggling or renaming it.
+  if (!existing.parent_task_id && !atLeast(req.workspaceRole, 'manager')) {
+    return res.status(403).json({ error: 'Only a manager, admin, or owner can delete a task' });
+  }
   // Attachment rows cascade via FK (for this task AND any sub-tasks, which
   // also cascade-delete), but the files on disk don't — clean those up first.
   const files = db.prepare(

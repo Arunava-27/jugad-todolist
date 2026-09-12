@@ -16,7 +16,7 @@ const NEW_WORKSPACE = '__new__';
 export default function Sidebar({
   user, workspaces, activeWorkspaceId, onSwitchWorkspace, onCreateWorkspace,
   projects, labels, view, onSelectView, open, onClose, onLogout, onProjectsChanged,
-  searchQuery, onSearch, readOnly, canSeeDashboard,
+  searchQuery, onSearch, readOnly, canManage, canSeeDashboard,
 }) {
   const [addingProject, setAddingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -85,8 +85,8 @@ export default function Sidebar({
         <span className="nav-count">{p.task_count - p.completed_count}</span>
         <span
           className={`star-toggle ${p.is_favorite ? 'active' : ''}`}
-          onClick={(e) => toggleFavorite(e, p)}
-          title={p.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
+          onClick={canManage ? (e) => toggleFavorite(e, p) : undefined}
+          title={canManage ? (p.is_favorite ? 'Remove from favorites' : 'Add to favorites') : undefined}
         ><Icon name="star" size={13} filled={p.is_favorite} /></span>
       </button>
     );
@@ -153,7 +153,7 @@ export default function Sidebar({
         <div className="sidebar-section">
           <div className="sidebar-section-title">
             Projects
-            {!readOnly && <button className="icon-btn" onClick={() => setAddingProject((s) => !s)} title="Add project"><Icon name="plus" size={14} /></button>}
+            {canManage && <button className="icon-btn" onClick={() => setAddingProject((s) => !s)} title="Add project"><Icon name="plus" size={14} /></button>}
           </div>
           {addingProject && (
             <form onSubmit={submitNewProject} className="inline-add-form">

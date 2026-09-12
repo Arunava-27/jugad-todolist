@@ -6,7 +6,7 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 
 function publicUser(user) {
-  return { id: user.id, email: user.email, name: user.name, role: user.role, team: user.team, organizationId: user.organization_id };
+  return { id: user.id, email: user.email, name: user.name, role: user.role, organizationId: user.organization_id };
 }
 
 function myWorkspaces(userId) {

@@ -121,7 +121,7 @@ router.patch('/users/:id', (req, res) => {
   const target = db.prepare('SELECT * FROM users WHERE id = ? AND organization_id = ?').get(id, req.user.organization_id);
   if (!target) return res.status(404).json({ error: 'User not found' });
 
-  const { role, is_active, team, domain_id, weekly_capacity_hours } = req.body || {};
+  const { role, is_active, domain_id, weekly_capacity_hours } = req.body || {};
   if (id === req.user.id && is_active === false) {
     return res.status(400).json({ error: "You can't deactivate your own account" });
   }
@@ -148,7 +148,6 @@ router.patch('/users/:id', (req, res) => {
   const values = [];
   if (role !== undefined) { fields.push('role = ?'); values.push(role); }
   if (is_active !== undefined) { fields.push('is_active = ?'); values.push(is_active ? 1 : 0); }
-  if (team !== undefined) { fields.push('team = ?'); values.push(String(team).trim() || null); }
   if (domain_id !== undefined) { fields.push('domain_id = ?'); values.push(domain_id || null); }
   if (weekly_capacity_hours !== undefined) {
     const n = weekly_capacity_hours === null || weekly_capacity_hours === '' ? null : Number(weekly_capacity_hours);
@@ -179,13 +178,22 @@ router.delete('/users/:id', (req, res) => {
   // atomic unit — the last-owner check in particular must see the same
   // count it deletes against. Cascades: workspace_members (removed),
   // invites and workspaces (kept, invited_by/created_by set to NULL) —
-  // nothing else in the schema references a user, so no task/project data
-  // is touched by deleting one.
+  // and, less obviously, task_members and project_stakeholders (both also
+  // ON DELETE CASCADE — see schema.sql), which silently unassign this
+  // person from every task and revoke every stakeholder grant they had.
+  // The task side of that gets an activity-log entry below, written before
+  // the cascade fires, so a task's own history doesn't go quiet right where
+  // an account disappearing matters most.
   let blocked = null;
   db.transaction(() => {
     if (target.role === 'owner') {
       const ownerCount = db.prepare("SELECT COUNT(*) c FROM users WHERE organization_id = ? AND role = 'owner'").get(req.user.organization_id).c;
       if (ownerCount <= 1) { blocked = 'The organization needs at least one owner'; return; }
+    }
+    const assignedTaskIds = db.prepare('SELECT task_id FROM task_members WHERE user_id = ?').all(id).map((r) => r.task_id);
+    const logRemoval = db.prepare('INSERT INTO task_activity (task_id, user_id, type, meta) VALUES (?, ?, ?, ?)');
+    for (const taskId of assignedTaskIds) {
+      logRemoval.run(taskId, req.user.id, 'assignee_removed', JSON.stringify({ name: target.name, reason: 'account_deleted' }));
     }
     db.prepare('DELETE FROM users WHERE id = ?').run(id);
   })();

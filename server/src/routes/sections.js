@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import db from '../db/index.js';
+import { atLeast } from '../lib/permissions.js';
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
+  if (!atLeast(req.workspaceRole, 'manager')) return res.status(403).json({ error: 'Only a manager, admin, or owner can create a section' });
   const { project_id, name } = req.body || {};
   const projectId = Number(project_id);
   if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
@@ -37,6 +39,7 @@ router.patch('/:id', (req, res) => {
   const id = Number(req.params.id);
   const existing = sectionInWorkspace(id, req.workspaceId);
   if (!existing) return res.status(404).json({ error: 'Section not found' });
+  if (!atLeast(req.workspaceRole, 'manager')) return res.status(403).json({ error: 'Only a manager, admin, or owner can edit a section' });
 
   const { name, sort_order } = req.body || {};
   const fields = [];
@@ -54,6 +57,7 @@ router.delete('/:id', (req, res) => {
   const id = Number(req.params.id);
   const existing = sectionInWorkspace(id, req.workspaceId);
   if (!existing) return res.status(404).json({ error: 'Section not found' });
+  if (!atLeast(req.workspaceRole, 'manager')) return res.status(403).json({ error: 'Only a manager, admin, or owner can delete a section' });
   db.prepare('DELETE FROM sections WHERE id = ?').run(id); // tasks.section_id -> NULL via FK
   res.json({ ok: true });
 });

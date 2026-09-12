@@ -104,10 +104,17 @@ export function parseQuickAdd(rawText, { priorities = [], projects = [] } = {}, 
   });
 
   // pN priority (p1..p5), word-boundaried so it doesn't eat "up1" etc.
+  // Priorities are reorderable/renamable (Settings → Workflow), so "p1"
+  // means whichever priority actually carries "P1" in its own name (e.g. the
+  // seeded "🔴 P1 - Urgent") — not "whatever sits first in the list today".
+  // Falls back to array position only for a list with no such label at all,
+  // so a still-default, untouched workspace keeps working exactly as before.
   const priorityMatch = text.match(/(?:^|\s)p([1-5])(?=\s|$)/i);
   if (priorityMatch) {
-    const idx = Number(priorityMatch[1]) - 1;
-    if (priorities[idx]) result.priority = priorities[idx].name;
+    const n = Number(priorityMatch[1]);
+    const byLabel = priorities.find((p) => new RegExp(`\\bp${n}\\b`, 'i').test(p.name));
+    const target = byLabel || priorities[n - 1];
+    if (target) result.priority = target.name;
     text = text.slice(0, priorityMatch.index) + text.slice(priorityMatch.index + priorityMatch[0].length);
   }
 

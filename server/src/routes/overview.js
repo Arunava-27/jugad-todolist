@@ -33,11 +33,16 @@ router.get('/', (req, res) => {
   ).get(req.workspaceId);
 
   const today = new Date().toISOString().slice(0, 10);
+  // LEFT JOIN, not JOIN: an overdue task with no project (sitting in the
+  // Inbox) has t.project_id = NULL, which an inner join to projects would
+  // silently drop from both this breakdown and the total below — exactly
+  // the kind of overdue work a manager most needs to see.
   const overdueByProject = db.prepare(
-    `SELECT p.id, p.name, COUNT(*) count FROM tasks t JOIN projects p ON p.id = t.project_id
+    `SELECT t.project_id as id, COALESCE(p.name, 'Inbox') as name, COUNT(*) count
+     FROM tasks t LEFT JOIN projects p ON p.id = t.project_id
      WHERE t.workspace_id = ? AND t.is_completed = 0 AND t.due_date IS NOT NULL AND t.due_date < ?
        AND t.parent_task_id IS NULL
-     GROUP BY p.id ORDER BY count DESC`
+     GROUP BY t.project_id ORDER BY count DESC`
   ).all(req.workspaceId, today);
   const overdueTotal = overdueByProject.reduce((sum, p) => sum + p.count, 0);
 

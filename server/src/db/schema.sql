@@ -31,8 +31,9 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'developer', -- rank within their org: 'owner' | 'admin' | 'manager' | 'developer' | 'viewer'
-  domain_id INTEGER REFERENCES domains(id) ON DELETE SET NULL, -- their discipline (see `domains`); replaces the old free-text `team` column below
-  team TEXT, -- superseded by domain_id (2026-09) — left in place, unused, rather than a destructive column drop
+  domain_id INTEGER REFERENCES domains(id) ON DELETE SET NULL, -- their discipline (see `domains`); replaces the
+    -- old free-text `team` column, dropped (2026-09) by the migration in db/index.js after confirming no
+    -- production row still carried a real value in it — a fresh install never has the column at all.
   is_active INTEGER NOT NULL DEFAULT 1,
   weekly_capacity_hours INTEGER, -- for the Dashboard's capacity view; NULL means "use the default" (see overview.js)
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))

@@ -8,7 +8,7 @@ import { confirmDialog } from '../lib/dialogs.js';
 
 const TABS = ['Appearance', 'Workflow', 'Labels', 'Members', 'Projects'];
 
-export default function Settings({ statuses, priorities, labels, projects, workspaceId, currentUserId, onChange }) {
+export default function Settings({ statuses, priorities, labels, projects, workspaceId, currentUserId, canManage, onChange }) {
   const [tab, setTab] = useState('Appearance');
   const [theme, setThemeState] = useState(getTheme());
   const [accent, setAccentState] = useState(getAccent());
@@ -75,32 +75,40 @@ export default function Settings({ statuses, priorities, labels, projects, works
           {tab === 'Workflow' && (
             <>
               <h3>Statuses</h3>
-              <p className="settings-hint">These become your board columns, in this order. Drag the handle to reorder. The check marks which status counts as "done" and which is the default for new tasks.</p>
+              <p className="settings-hint">
+                These become your board columns, in this order. Drag the handle to reorder. The check marks which status counts as "done" and which is the default for new tasks.
+                {!canManage && ' Only a manager, admin, or owner can change these.'}
+              </p>
               <SettingsList
                 items={statuses}
                 reorderable
+                readOnly={!canManage}
                 addPlaceholder="New status name"
                 onCreate={(data) => api.createStatus(data).then(onChange)}
                 onUpdate={(id, patch) => api.updateStatus(id, patch).then(onChange)}
                 onDelete={(id, reassignTo) => api.deleteStatus(id, reassignTo).then(onChange)}
                 onReorder={(ordered) => Promise.all(ordered.map((item, idx) => api.updateStatus(item.id, { sort_order: idx }))).then(onChange)}
-                renderRowExtra={(item, patch) => (
+                renderRowExtra={(item, patch, readOnly) => (
                   <>
                     <label title="Counts as completed">
-                      <input type="checkbox" checked={!!item.is_done} onChange={(e) => patch({ is_done: e.target.checked })} /> Done
+                      <input type="checkbox" checked={!!item.is_done} onChange={(e) => patch({ is_done: e.target.checked })} disabled={readOnly} /> Done
                     </label>
                     <label title="Default status for new tasks">
-                      <input type="radio" name="default-status" checked={!!item.is_default} onChange={() => patch({ is_default: true })} /> Default
+                      <input type="radio" name="default-status" checked={!!item.is_default} onChange={() => patch({ is_default: true })} disabled={readOnly} /> Default
                     </label>
                   </>
                 )}
               />
 
               <h3 style={{ marginTop: 28 }}>Priorities</h3>
-              <p className="settings-hint">Shown as flags/chips on tasks. Drag the handle to reorder.</p>
+              <p className="settings-hint">
+                Shown as flags/chips on tasks. Drag the handle to reorder.
+                {!canManage && ' Only a manager, admin, or owner can change these.'}
+              </p>
               <SettingsList
                 items={priorities}
                 reorderable
+                readOnly={!canManage}
                 addPlaceholder="New priority name"
                 onCreate={(data) => api.createPriority(data).then(onChange)}
                 onUpdate={(id, patch) => api.updatePriority(id, patch).then(onChange)}
@@ -137,10 +145,14 @@ export default function Settings({ statuses, priorities, labels, projects, works
           {tab === 'Projects' && (
             <>
               <h3>Projects</h3>
-              <p className="settings-hint">Rename, recolor, archive, delete, or reorder projects. Drag the handle to reorder — this is the order they show in the sidebar.</p>
+              <p className="settings-hint">
+                Rename, recolor, archive, delete, or reorder projects. Drag the handle to reorder — this is the order they show in the sidebar.
+                {!canManage && ' Only a manager, admin, or owner can change these.'}
+              </p>
               <SettingsList
                 items={projects}
                 reorderable
+                readOnly={!canManage}
                 addPlaceholder="New project name"
                 onCreate={(data) => api.createProject(data).then(onChange)}
                 onUpdate={(id, patch) => api.updateProject(id, patch).then(onChange)}
@@ -151,14 +163,14 @@ export default function Settings({ statuses, priorities, labels, projects, works
                   return api.deleteProject(id).then(onChange);
                 }}
                 onReorder={(ordered) => Promise.all(ordered.map((item, idx) => api.updateProject(item.id, { sort_order: idx }))).then(onChange)}
-                renderRowExtra={(item, patch) => (
+                renderRowExtra={(item, patch, readOnly) => (
                   <>
-                    <select value={item.status || ''} onChange={(e) => patch({ status: e.target.value })} title="Lifecycle stage">
+                    <select value={item.status || ''} onChange={(e) => patch({ status: e.target.value })} title="Lifecycle stage" disabled={readOnly}>
                       <option value="">No stage</option>
                       {PROJECT_STAGES.map((s) => <option key={s.value} value={s.value}>{s.value}</option>)}
                     </select>
                     <label title="Hide from the sidebar's main project list">
-                      <input type="checkbox" checked={!!item.is_archived} onChange={(e) => patch({ is_archived: e.target.checked })} /> Archived
+                      <input type="checkbox" checked={!!item.is_archived} onChange={(e) => patch({ is_archived: e.target.checked })} disabled={readOnly} /> Archived
                     </label>
                   </>
                 )}

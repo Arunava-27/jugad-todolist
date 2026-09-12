@@ -7,7 +7,7 @@ import Icon from './Icon.jsx';
 const NO_SECTION = '__none__';
 
 export default function SectionedTaskList({
-  tasks, sections, projectId, priorities, loading, onToggleComplete, onOpenTask, onTaskMoved, onSectionsChanged,
+  tasks, sections, projectId, priorities, loading, onToggleComplete, onOpenTask, onTaskMoved, onSectionsChanged, canManage,
 }) {
   const [addingSection, setAddingSection] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
@@ -77,23 +77,26 @@ export default function SectionedTaskList({
           className={`task-section ${dragOverSectionId === g.id ? 'drag-over' : ''}`}
           onDragOver={(e) => { e.preventDefault(); setDragOverSectionId(g.id); }}
           onDragLeave={() => setDragOverSectionId((cur) => (cur === g.id ? null : cur))}
-          onDrop={(e) => { handleTaskDrop(e, g.id); if (g.id !== NO_SECTION) handleSectionDrop(g.id); setDragOverSectionId(null); }}
+          onDrop={(e) => { handleTaskDrop(e, g.id); if (g.id !== NO_SECTION && canManage) handleSectionDrop(g.id); setDragOverSectionId(null); }}
         >
           {g.id !== NO_SECTION ? (
             <div
               className="task-section-header"
-              draggable
-              onDragStart={() => setDragSectionId(g.id)}
+              draggable={canManage}
+              onDragStart={canManage ? () => setDragSectionId(g.id) : undefined}
             >
-              <span className="drag-handle" title="Drag to reorder"><Icon name="grip" size={14} /></span>
+              {canManage && <span className="drag-handle" title="Drag to reorder"><Icon name="grip" size={14} /></span>}
               <input
                 className="task-section-name"
                 defaultValue={g.name}
                 onBlur={(e) => renameSection(sections.find((s) => s.id === g.id), e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                disabled={!canManage}
               />
               <span className="nav-count">{bySection.get(g.id).length}</span>
-              <button className="icon-btn danger-hover" onClick={() => deleteSection(sections.find((s) => s.id === g.id))} title="Delete section"><Icon name="trash" size={14} /></button>
+              {canManage && (
+                <button className="icon-btn danger-hover" onClick={() => deleteSection(sections.find((s) => s.id === g.id))} title="Delete section"><Icon name="trash" size={14} /></button>
+              )}
             </div>
           ) : (
             sections.length > 0 && <div className="task-section-header no-section"><span className="task-section-name">No section</span></div>
@@ -119,7 +122,7 @@ export default function SectionedTaskList({
         </div>
       ))}
 
-      {addingSection ? (
+      {canManage && (addingSection ? (
         <form className="settings-add-row" onSubmit={submitNewSection} style={{ margin: '8px 28px' }}>
           <input
             autoFocus
@@ -132,7 +135,7 @@ export default function SectionedTaskList({
         </form>
       ) : (
         <button className="quick-add-trigger" onClick={() => setAddingSection(true)}><Icon name="plus" size={14} /> Add section</button>
-      )}
+      ))}
     </div>
   );
 }

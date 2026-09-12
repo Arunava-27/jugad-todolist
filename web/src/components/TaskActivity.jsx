@@ -35,7 +35,7 @@ const EVENT_ICON = {
   completed: 'check', reopened: 'x', assignee_added: 'user', assignee_removed: 'user',
 };
 
-export default function TaskActivity({ taskId, currentUserId }) {
+export default function TaskActivity({ taskId, currentUserId, readOnly }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [comment, setComment] = useState('');
@@ -85,7 +85,7 @@ export default function TaskActivity({ taskId, currentUserId }) {
                 <div className="activity-comment-head">
                   <strong>{entry.user_name || 'Someone'}</strong>
                   <span className="settings-hint" style={{ margin: 0 }}>{when(entry.created_at)}</span>
-                  {entry.user_id === currentUserId && (
+                  {!readOnly && entry.user_id === currentUserId && (
                     <button className="icon-btn danger-hover activity-comment-delete" title="Delete comment" onClick={() => removeComment(entry.id)}>
                       <Icon name="trash" size={12} />
                     </button>
@@ -104,15 +104,17 @@ export default function TaskActivity({ taskId, currentUserId }) {
         ))}
       </div>
 
-      <form className="activity-comment-form" onSubmit={submitComment}>
-        <textarea
-          placeholder="Add a comment…"
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          rows={2}
-        />
-        <button type="submit" disabled={posting || !comment.trim()}>{posting ? 'Posting…' : 'Comment'}</button>
-      </form>
+      {!readOnly && (
+        <form className="activity-comment-form" onSubmit={submitComment}>
+          <textarea
+            placeholder="Add a comment…"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={2}
+          />
+          <button type="submit" disabled={posting || !comment.trim()}>{posting ? 'Posting…' : 'Comment'}</button>
+        </form>
+      )}
     </div>
   );
 }

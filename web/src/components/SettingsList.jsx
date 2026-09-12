@@ -6,7 +6,7 @@ import Icon from './Icon.jsx';
 // priorities, labels and people. Handles inline rename/recolor, delete with
 // a "reassign in-use items first" fallback, adding a new row, and (when
 // `reorderable`) drag-to-reorder persisted via sort_order.
-export default function SettingsList({ items, onCreate, onUpdate, onDelete, onReorder, renderRowExtra, addPlaceholder = 'Add new…', reorderable = false }) {
+export default function SettingsList({ items, onCreate, onUpdate, onDelete, onReorder, renderRowExtra, addPlaceholder = 'Add new…', reorderable = false, readOnly = false }) {
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState('#d9a02a');
   const [creating, setCreating] = useState(false);
@@ -79,43 +79,49 @@ export default function SettingsList({ items, onCreate, onUpdate, onDelete, onRe
     onReorder(reordered);
   }
 
+  const canDrag = reorderable && !readOnly;
+
   return (
     <div>
       <div className="settings-list">
         {items.map((item) => (
           <div key={item.id}>
             <div
-              className={`settings-row ${reorderable ? 'reorderable' : ''} ${dragOverId === item.id ? 'drag-over' : ''}`}
-              draggable={reorderable}
+              className={`settings-row ${canDrag ? 'reorderable' : ''} ${dragOverId === item.id ? 'drag-over' : ''}`}
+              draggable={canDrag}
               onDragStart={() => setDragId(item.id)}
-              onDragOver={(e) => { if (reorderable) { e.preventDefault(); setDragOverId(item.id); } }}
+              onDragOver={(e) => { if (canDrag) { e.preventDefault(); setDragOverId(item.id); } }}
               onDragLeave={() => setDragOverId((cur) => (cur === item.id ? null : cur))}
-              onDrop={(e) => { if (reorderable) { e.preventDefault(); handleDrop(item.id); } }}
+              onDrop={(e) => { if (canDrag) { e.preventDefault(); handleDrop(item.id); } }}
             >
-              {reorderable && <span className="drag-handle" title="Drag to reorder"><Icon name="grip" size={14} /></span>}
+              {reorderable && <span className="drag-handle" title={canDrag ? 'Drag to reorder' : undefined}><Icon name="grip" size={14} /></span>}
               <input
                 type="color"
                 value={item.color || '#94a3b8'}
                 onChange={(e) => recolor(item, e.target.value)}
                 title="Color"
+                disabled={readOnly}
               />
               <input
                 type="text"
                 defaultValue={item.name}
                 onBlur={(e) => rename(item, e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                disabled={readOnly}
               />
               {renderRowExtra && (
-                <div className="settings-row-flags">{renderRowExtra(item, (patch) => onUpdate(item.id, patch))}</div>
+                <div className="settings-row-flags">{renderRowExtra(item, (patch) => onUpdate(item.id, patch), readOnly)}</div>
               )}
-              <button
-                className="icon-btn danger-hover"
-                onClick={() => tryDelete(item)}
-                disabled={busyId === item.id}
-                title="Delete"
-              >
-                <Icon name="trash" size={14} />
-              </button>
+              {!readOnly && (
+                <button
+                  className="icon-btn danger-hover"
+                  onClick={() => tryDelete(item)}
+                  disabled={busyId === item.id}
+                  title="Delete"
+                >
+                  <Icon name="trash" size={14} />
+                </button>
+              )}
             </div>
             {blocked?.id === item.id && (
               <div className="reassign-inline">
@@ -137,16 +143,18 @@ export default function SettingsList({ items, onCreate, onUpdate, onDelete, onRe
         ))}
       </div>
 
-      <form className="settings-add-row" onSubmit={submitNew}>
-        <input type="color" value={newColor} onChange={(e) => setNewColor(e.target.value)} />
-        <input
-          type="text"
-          placeholder={addPlaceholder}
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-        />
-        <button type="submit" disabled={creating || !newName.trim()}>Add</button>
-      </form>
+      {!readOnly && (
+        <form className="settings-add-row" onSubmit={submitNew}>
+          <input type="color" value={newColor} onChange={(e) => setNewColor(e.target.value)} />
+          <input
+            type="text"
+            placeholder={addPlaceholder}
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+          <button type="submit" disabled={creating || !newName.trim()}>Add</button>
+        </form>
+      )}
     </div>
   );
 }

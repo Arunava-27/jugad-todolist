@@ -3,7 +3,7 @@ import { api } from '../lib/api.js';
 import { confirmDialog } from '../lib/dialogs.js';
 import Icon from './Icon.jsx';
 
-export default function SubtaskList({ parentTaskId }) {
+export default function SubtaskList({ parentTaskId, readOnly }) {
   const [subtasks, setSubtasks] = useState([]);
   const [newTitle, setNewTitle] = useState('');
   const [adding, setAdding] = useState(false);
@@ -61,7 +61,7 @@ export default function SubtaskList({ parentTaskId }) {
         <ul className="subtask-list">
           {subtasks.map((s) => (
             <li className={`subtask-row ${s.is_completed ? 'completed' : ''}`} key={s.id}>
-              <button className="task-checkbox" onClick={() => toggle(s)} aria-label="Toggle complete">
+              <button className="task-checkbox" onClick={readOnly ? undefined : () => toggle(s)} disabled={readOnly} aria-label="Toggle complete">
                 {s.is_completed && <Icon name="check" size={12} />}
               </button>
               <input
@@ -69,21 +69,26 @@ export default function SubtaskList({ parentTaskId }) {
                 defaultValue={s.title}
                 onBlur={(e) => rename(s, e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                disabled={readOnly}
               />
-              <button className="icon-btn danger-hover" onClick={() => remove(s)} title="Delete sub-task"><Icon name="x" size={13} /></button>
+              {!readOnly && (
+                <button className="icon-btn danger-hover" onClick={() => remove(s)} title="Delete sub-task"><Icon name="x" size={13} /></button>
+              )}
             </li>
           ))}
         </ul>
       )}
-      <form className="settings-add-row" onSubmit={submitAdd}>
-        <input
-          placeholder="Add a sub-task…"
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          style={{ flex: 1 }}
-        />
-        <button type="submit" disabled={adding || !newTitle.trim()}>Add</button>
-      </form>
+      {!readOnly && (
+        <form className="settings-add-row" onSubmit={submitAdd}>
+          <input
+            placeholder="Add a sub-task…"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            style={{ flex: 1 }}
+          />
+          <button type="submit" disabled={adding || !newTitle.trim()}>Add</button>
+        </form>
+      )}
     </div>
   );
 }

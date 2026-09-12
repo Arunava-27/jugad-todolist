@@ -28,6 +28,8 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
+  if (!atLeast(req.workspaceRole, 'manager')) return res.status(403).json({ error: 'Only a manager, admin, or owner can create a project' });
+
   const { name, status, platform, description, version, build_number, start_date, target_date, color } = req.body || {};
   if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
   const maxOrder = db.prepare('SELECT MAX(sort_order) m FROM projects WHERE workspace_id = ?').get(req.workspaceId).m ?? -1;
@@ -48,6 +50,7 @@ router.patch('/:id', (req, res) => {
   const id = Number(req.params.id);
   const existing = db.prepare('SELECT * FROM projects WHERE id = ? AND workspace_id = ?').get(id, req.workspaceId);
   if (!existing) return res.status(404).json({ error: 'Project not found' });
+  if (!atLeast(req.workspaceRole, 'manager')) return res.status(403).json({ error: 'Only a manager, admin, or owner can edit a project' });
 
   const fields = ['name', 'status', 'platform', 'description', 'version', 'build_number', 'start_date', 'target_date', 'color', 'is_archived', 'is_favorite', 'sort_order'];
   const boolFields = new Set(['is_archived', 'is_favorite']);
@@ -69,6 +72,7 @@ router.delete('/:id', (req, res) => {
   const id = Number(req.params.id);
   const existing = db.prepare('SELECT * FROM projects WHERE id = ? AND workspace_id = ?').get(id, req.workspaceId);
   if (!existing) return res.status(404).json({ error: 'Project not found' });
+  if (!atLeast(req.workspaceRole, 'manager')) return res.status(403).json({ error: 'Only a manager, admin, or owner can delete a project' });
   db.prepare('DELETE FROM projects WHERE id = ?').run(id); // tasks.project_id -> NULL via FK
   res.json({ ok: true });
 });

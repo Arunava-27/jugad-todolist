@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api.js';
-import { confirmDialog } from '../lib/dialogs.js';
+import { confirmDialog, alertDialog } from '../lib/dialogs.js';
 import { colorForPerson, initials } from '../lib/format.js';
 import SubtaskList from './SubtaskList.jsx';
 import TaskActivity from './TaskActivity.jsx';
 import Icon from './Icon.jsx';
 
-export default function TaskModal({ task, projects, statuses, priorities, members, currentUserId, onClose, onUpdate, onDelete }) {
+export default function TaskModal({ task, projects, statuses, priorities, members, currentUserId, canManage, readOnly, onClose, onUpdate, onDelete }) {
   const [tab, setTab] = useState('Details');
   const [attachments, setAttachments] = useState(task.attachments || []);
   const [uploading, setUploading] = useState(false);
@@ -101,6 +101,11 @@ export default function TaskModal({ task, projects, statuses, priorities, member
         member_ids: form.member_ids,
       });
       onClose();
+    } catch (err) {
+      // Was previously an unhandled rejection — the button would just revert
+      // to "Save" with zero explanation of what went wrong (a permissions
+      // change mid-session, a dropped connection, etc).
+      alertDialog(err.message || 'Could not save this task');
     } finally {
       setSaving(false);
     }
@@ -119,6 +124,7 @@ export default function TaskModal({ task, projects, statuses, priorities, member
           value={form.title}
           onChange={(e) => set('title', e.target.value)}
           placeholder="Task title"
+          disabled={readOnly}
         />
 
         <textarea
@@ -127,6 +133,7 @@ export default function TaskModal({ task, projects, statuses, priorities, member
           value={form.description}
           onChange={(e) => set('description', e.target.value)}
           rows={3}
+          disabled={readOnly}
         />
 
         <div className="modal-tabs">
@@ -135,87 +142,96 @@ export default function TaskModal({ task, projects, statuses, priorities, member
         </div>
 
         {tab === 'Activity' ? (
-          <TaskActivity taskId={task.id} currentUserId={currentUserId} />
+          <TaskActivity taskId={task.id} currentUserId={currentUserId} readOnly={readOnly} />
         ) : (
         <>
         <div className="modal-grid">
           <label>
             Status
-            <select value={form.status} onChange={(e) => set('status', e.target.value)}>
+            <select value={form.status} onChange={(e) => set('status', e.target.value)} disabled={readOnly}>
               {statuses.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
             </select>
           </label>
           <label>
             Priority
-            <select value={form.priority} onChange={(e) => set('priority', e.target.value)}>
+            <select value={form.priority} onChange={(e) => set('priority', e.target.value)} disabled={readOnly}>
               <option value="">None</option>
               {priorities.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
             </select>
           </label>
           <label>
             Due date
-            <input type="date" value={form.due_date} onChange={(e) => set('due_date', e.target.value)} />
+            <input type="date" value={form.due_date} onChange={(e) => set('due_date', e.target.value)} disabled={readOnly} />
           </label>
           <label>
             Project
-            <select value={form.project_id} onChange={(e) => changeProject(e.target.value)}>
+            <select value={form.project_id} onChange={(e) => changeProject(e.target.value)} disabled={readOnly}>
               <option value="">No project</option>
               {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </label>
           <label>
             Section
-            <select value={form.section_id} onChange={(e) => set('section_id', e.target.value)} disabled={!form.project_id}>
+            <select value={form.section_id} onChange={(e) => set('section_id', e.target.value)} disabled={readOnly || !form.project_id}>
               <option value="">No section</option>
               {sectionOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </label>
           <label>
             Platform
-            <input value={form.platform} onChange={(e) => set('platform', e.target.value)} placeholder="e.g. Web App" />
+            <input value={form.platform} onChange={(e) => set('platform', e.target.value)} placeholder="e.g. Web App" disabled={readOnly} />
           </label>
           <label>
             Estimate (hrs)
-            <input type="number" step="0.5" value={form.estimate_hours} onChange={(e) => set('estimate_hours', e.target.value)} />
+            <input type="number" step="0.5" value={form.estimate_hours} onChange={(e) => set('estimate_hours', e.target.value)} disabled={readOnly} />
           </label>
           <label>
             Version
-            <input value={form.version} onChange={(e) => set('version', e.target.value)} />
+            <input value={form.version} onChange={(e) => set('version', e.target.value)} disabled={readOnly} />
           </label>
           <label>
             Build number
-            <input value={form.build_number} onChange={(e) => set('build_number', e.target.value)} />
+            <input value={form.build_number} onChange={(e) => set('build_number', e.target.value)} disabled={readOnly} />
           </label>
           <label className="span-2">
             Link
-            <input value={form.link} onChange={(e) => set('link', e.target.value)} placeholder="https://…" />
+            <input value={form.link} onChange={(e) => set('link', e.target.value)} placeholder="https://…" disabled={readOnly} />
           </label>
           <label className="span-2">
             Labels (comma separated)
-            <input value={form.labels} onChange={(e) => set('labels', e.target.value)} placeholder="backend, frontend" />
+            <input value={form.labels} onChange={(e) => set('labels', e.target.value)} placeholder="backend, frontend" disabled={readOnly} />
           </label>
           <label className="span-2">
             Assignees
             <div className="member-picker">
               {members.length === 0 && <span className="settings-hint" style={{ margin: 0 }}>No one else in this workspace yet</span>}
-              {members.map((m) => (
-                <button
-                  type="button"
-                  key={m.id}
-                  className={`member-chip ${form.member_ids.includes(m.id) ? 'selected' : ''}`}
-                  onClick={() => toggleMember(m.id)}
-                  title={m.email}
-                >
-                  <span className="avatar" style={{ background: colorForPerson(m.name) }}>{initials(m.name)}</span>
-                  {m.name}
-                  {m.domain_name && <span className="domain-tag" style={{ color: m.domain_color, borderColor: m.domain_color }}>{m.domain_name}</span>}
-                </button>
-              ))}
+              {members.map((m) => {
+                // Assigning someone else is a manager+ action — assigning or
+                // unassigning yourself stays open to everyone (see tasks.js's
+                // requiresManagerForAssignment). Only the chips for other
+                // people get locked for a non-manager; self stays live. A
+                // viewer can't touch any of it.
+                const canToggle = !readOnly && (canManage || m.id === currentUserId);
+                return (
+                  <button
+                    type="button"
+                    key={m.id}
+                    className={`member-chip ${form.member_ids.includes(m.id) ? 'selected' : ''}`}
+                    onClick={canToggle ? () => toggleMember(m.id) : undefined}
+                    disabled={!canToggle}
+                    title={canToggle ? m.email : readOnly ? m.email : `Only a manager, admin, or owner can assign this to ${m.name}`}
+                  >
+                    <span className="avatar" style={{ background: colorForPerson(m.name) }}>{initials(m.name)}</span>
+                    {m.name}
+                    {m.domain_name && <span className="domain-tag" style={{ color: m.domain_color, borderColor: m.domain_color }}>{m.domain_name}</span>}
+                  </button>
+                );
+              })}
             </div>
           </label>
         </div>
 
-        {!task.parent_task_id && <SubtaskList parentTaskId={task.id} />}
+        {!task.parent_task_id && <SubtaskList parentTaskId={task.id} readOnly={readOnly} />}
 
         <div className="attachments-section">
           <div className="settings-hint" style={{ marginBottom: 8 }}>Images</div>
@@ -224,36 +240,45 @@ export default function TaskModal({ task, projects, statuses, priorities, member
             {attachments.map((a) => (
               <div className="attachment-thumb" key={a.id}>
                 <img src={a.url} alt={a.original_name} />
-                <button
-                  type="button"
-                  className="attachment-remove"
-                  onClick={() => removeAttachment(a.id)}
-                  title={`Remove ${a.original_name}`}
-                ><Icon name="x" size={10} /></button>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className="attachment-remove"
+                    onClick={() => removeAttachment(a.id)}
+                    title={`Remove ${a.original_name}`}
+                  ><Icon name="x" size={10} /></button>
+                )}
               </div>
             ))}
-            <label className="attachment-add">
-              {uploading ? '…' : <Icon name="plus" size={18} />}
-              <input type="file" accept="image/*" hidden onChange={handleFileChange} disabled={uploading} />
-            </label>
+            {!readOnly && (
+              <label className="attachment-add">
+                {uploading ? '…' : <Icon name="plus" size={18} />}
+                <input type="file" accept="image/*" hidden onChange={handleFileChange} disabled={uploading} />
+              </label>
+            )}
+            {readOnly && attachments.length === 0 && (
+              <span className="settings-hint" style={{ margin: 0 }}>No images.</span>
+            )}
           </div>
         </div>
         </>
         )}
 
         <div className="modal-footer">
-          <button
-            className="danger"
-            onClick={async () => {
-              const message = task.subtask_count > 0
-                ? `Delete "${task.title}"? Its ${task.subtask_count} sub-task${task.subtask_count === 1 ? '' : 's'} will be deleted too.`
-                : `Delete "${task.title}"?`;
-              const ok = await confirmDialog(message, { title: 'Delete task', danger: true });
-              if (ok) onDelete(task.id);
-            }}
-          >Delete</button>
+          {canManage && (
+            <button
+              className="danger"
+              onClick={async () => {
+                const message = task.subtask_count > 0
+                  ? `Delete "${task.title}"? Its ${task.subtask_count} sub-task${task.subtask_count === 1 ? '' : 's'} will be deleted too.`
+                  : `Delete "${task.title}"?`;
+                const ok = await confirmDialog(message, { title: 'Delete task', danger: true });
+                if (ok) onDelete(task.id);
+              }}
+            >Delete</button>
+          )}
           <div className="modal-footer-right">
-            {tab === 'Details' ? (
+            {tab === 'Details' && !readOnly ? (
               <>
                 <button className="ghost" onClick={onClose}>Cancel</button>
                 <button onClick={save} disabled={saving || !form.title.trim()}>{saving ? 'Saving…' : 'Save'}</button>

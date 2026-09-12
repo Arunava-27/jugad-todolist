@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import db from '../db/index.js';
+import { atLeast } from '../lib/permissions.js';
 
 const router = Router();
 
@@ -8,6 +9,7 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
+  if (!atLeast(req.workspaceRole, 'manager')) return res.status(403).json({ error: 'Only a manager, admin, or owner can add a status' });
   const { name, color, is_done } = req.body || {};
   if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
   const maxOrder = db.prepare('SELECT MAX(sort_order) m FROM statuses WHERE workspace_id = ?').get(req.workspaceId).m ?? -1;
@@ -26,6 +28,7 @@ router.patch('/:id', (req, res) => {
   const id = Number(req.params.id);
   const existing = db.prepare('SELECT * FROM statuses WHERE id = ? AND workspace_id = ?').get(id, req.workspaceId);
   if (!existing) return res.status(404).json({ error: 'Status not found' });
+  if (!atLeast(req.workspaceRole, 'manager')) return res.status(403).json({ error: 'Only a manager, admin, or owner can edit a status' });
   const { name, color, sort_order, is_done, is_default } = req.body || {};
 
   const run = db.transaction(() => {
@@ -63,12 +66,17 @@ router.delete('/:id', (req, res) => {
   const id = Number(req.params.id);
   const existing = db.prepare('SELECT * FROM statuses WHERE id = ? AND workspace_id = ?').get(id, req.workspaceId);
   if (!existing) return res.status(404).json({ error: 'Status not found' });
+  if (!atLeast(req.workspaceRole, 'manager')) return res.status(403).json({ error: 'Only a manager, admin, or owner can delete a status' });
 
   const inUse = db.prepare('SELECT COUNT(*) c FROM tasks WHERE workspace_id = ? AND status = ?').get(req.workspaceId, existing.name).c;
   const reassignTo = req.query.reassign_to;
 
   if (inUse > 0 && !reassignTo) {
     return res.status(409).json({ error: 'Status is in use by tasks', count: inUse });
+  }
+  if (inUse > 0 && reassignTo) {
+    const target = db.prepare('SELECT 1 FROM statuses WHERE workspace_id = ? AND name = ? AND id != ?').get(req.workspaceId, reassignTo, id);
+    if (!target) return res.status(400).json({ error: 'reassign_to must be the name of an existing status' });
   }
   const total = db.prepare('SELECT COUNT(*) c FROM statuses WHERE workspace_id = ?').get(req.workspaceId).c;
   if (total <= 1) return res.status(400).json({ error: 'At least one status must remain' });
