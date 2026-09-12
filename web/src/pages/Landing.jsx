@@ -42,13 +42,6 @@ const FEATURES = [
   },
 ];
 
-const PROJECTS = [
-  { name: 'HAL App', color: '#6366f1', desc: 'Mobile build — the project that pushed us to stop trusting a database with a row limit.' },
-  { name: 'IEMA AI', color: '#8b5cf6', desc: 'The AI-side workstream, tracked alongside everything else instead of in its own tool.' },
-  { name: 'IEM BrandStore', color: '#0ea5e9', desc: 'The largest board here — proof this holds up past a handful of tasks.' },
-  { name: 'Grant In Aid', color: '#3f8f6f', desc: 'Smaller and slower-moving, and still worth a real board instead of a stray note.' },
-];
-
 export default function Landing({ onSignIn }) {
   return (
     <div className="landing">
@@ -109,29 +102,6 @@ export default function Landing({ onSignIn }) {
           </div>
         </section>
 
-        <section className="landing-why">
-          <div className="landing-wrap landing-why-grid">
-            <h2>Why not just use Notion?</h2>
-            <div>
-              <p>
-                We tracked engineering work in a Notion database for a while. It worked, right up
-                until it didn't — every plan has <strong>a storage cap, a row limit, or a per-seat
-                price</strong> attached to it somewhere. Punchlist has none of those, because there's
-                no vendor between the team and the server.
-              </p>
-              <p>
-                The old Notion <em>Dev Tasks</em> and <em>Projects</em> databases were imported once,
-                on day one, so nothing from before the move was lost.
-              </p>
-              <div className="landing-stat-row">
-                <div className="landing-stat"><b>95</b><span>tasks migrated</span></div>
-                <div className="landing-stat"><b>4</b><span>projects</span></div>
-                <div className="landing-stat"><b>$6</b><span>per month, flat</span></div>
-              </div>
-            </div>
-          </div>
-        </section>
-
         <section className="landing-features">
           <div className="landing-wrap">
             <h2>Everything a punch list needs</h2>
@@ -149,23 +119,6 @@ export default function Landing({ onSignIn }) {
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        <section className="landing-projects">
-          <div className="landing-wrap">
-            <h2>What's actually tracked in here</h2>
-            <p className="landing-section-sub">Four real projects, one shared workspace called IEMA.</p>
-            <ul className="landing-plist">
-              {PROJECTS.map((p) => (
-                <li key={p.name}>
-                  <span className="landing-pdot" style={{ background: p.color }} />
-                  <span className="landing-pname">{p.name}</span>
-                  <span className="landing-pdesc">{p.desc}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="landing-credit">— built and used by Arunava, Debashish &amp; Soumi</div>
           </div>
         </section>
       </main>
