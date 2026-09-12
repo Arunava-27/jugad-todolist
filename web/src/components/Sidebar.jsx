@@ -16,7 +16,7 @@ const NEW_WORKSPACE = '__new__';
 export default function Sidebar({
   user, workspaces, activeWorkspaceId, onSwitchWorkspace, onCreateWorkspace,
   projects, labels, view, onSelectView, open, onClose, onLogout, onProjectsChanged,
-  searchQuery, onSearch, readOnly,
+  searchQuery, onSearch, readOnly, canSeeDashboard,
 }) {
   const [addingProject, setAddingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -120,17 +120,28 @@ export default function Sidebar({
           />
         </form>
 
-        <nav className="sidebar-nav">
-          {SMART_VIEWS.map((v) => (
-            <button
-              key={v.type}
-              className={`nav-item ${view.type === v.type ? 'active' : ''}`}
-              onClick={() => onSelectView({ type: v.type })}
-            >
-              <span className="nav-icon"><Icon name={v.icon} size={16} /></span> {v.label}
-            </button>
-          ))}
-        </nav>
+        <div className="sidebar-section">
+          <div className="sidebar-section-title">Views</div>
+          <nav className="sidebar-nav">
+            {SMART_VIEWS.map((v) => (
+              <button
+                key={v.type}
+                className={`nav-item ${view.type === v.type ? 'active' : ''}`}
+                onClick={() => onSelectView({ type: v.type })}
+              >
+                <span className="nav-icon"><Icon name={v.icon} size={16} /></span> {v.label}
+              </button>
+            ))}
+            {canSeeDashboard && (
+              <button
+                className={`nav-item ${view.type === 'dashboard' ? 'active' : ''}`}
+                onClick={() => onSelectView({ type: 'dashboard' })}
+              >
+                <span className="nav-icon"><Icon name="chart" size={16} /></span> Dashboard
+              </button>
+            )}
+          </nav>
+        </div>
 
         {favorites.length > 0 && (
           <div className="sidebar-section">
@@ -173,20 +184,23 @@ export default function Sidebar({
           </div>
         )}
 
-        <button
-          className={`nav-item ${view.type === 'guides' ? 'active' : ''}`}
-          onClick={() => onSelectView({ type: 'guides' })}
-        ><span className="nav-icon"><Icon name="book" size={16} /></span> Guides</button>
-        <button
-          className={`nav-item ${view.type === 'settings' ? 'active' : ''}`}
-          onClick={() => onSelectView({ type: 'settings' })}
-        ><span className="nav-icon"><Icon name="gear" size={16} /></span> Settings</button>
-        {(user.role === 'owner' || user.role === 'admin') && (
+        <div className="sidebar-section">
+          <div className="sidebar-section-title">Organization</div>
           <button
-            className={`nav-item ${view.type === 'admin' ? 'active' : ''}`}
-            onClick={() => onSelectView({ type: 'admin' })}
-          ><span className="nav-icon"><Icon name="shield" size={16} /></span> Admin</button>
-        )}
+            className={`nav-item ${view.type === 'guides' ? 'active' : ''}`}
+            onClick={() => onSelectView({ type: 'guides' })}
+          ><span className="nav-icon"><Icon name="book" size={16} /></span> Guides</button>
+          <button
+            className={`nav-item ${view.type === 'settings' ? 'active' : ''}`}
+            onClick={() => onSelectView({ type: 'settings' })}
+          ><span className="nav-icon"><Icon name="gear" size={16} /></span> Settings</button>
+          {(user.role === 'owner' || user.role === 'admin') && (
+            <button
+              className={`nav-item ${view.type === 'admin' ? 'active' : ''}`}
+              onClick={() => onSelectView({ type: 'admin' })}
+            ><span className="nav-icon"><Icon name="shield" size={16} /></span> Admin</button>
+          )}
+        </div>
         <div className="sidebar-user">{user.name}</div>
         <button className="nav-item logout" onClick={onLogout}><span className="nav-icon"><Icon name="logout" size={16} /></span> Log out</button>
       </aside>

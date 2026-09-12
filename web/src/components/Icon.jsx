@@ -170,6 +170,14 @@ const PATHS = {
       <path d="M5 19.5c0-3.6 3.1-6.3 7-6.3s7 2.7 7 6.3" strokeLinejoin="round" />
     </>
   ),
+  chart: (
+    <>
+      <line x1="5" y1="20" x2="19" y2="20" />
+      <rect x="6" y="13" width="3.5" height="7" strokeLinejoin="round" />
+      <rect x="10.5" y="8" width="3.5" height="12" strokeLinejoin="round" />
+      <rect x="15" y="4.5" width="3.5" height="15.5" strokeLinejoin="round" />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = 17, filled = false, className = '', style }) {

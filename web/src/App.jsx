@@ -10,6 +10,7 @@ import Settings from './pages/Settings.jsx';
 import Admin from './pages/Admin.jsx';
 import Guides from './pages/Guides.jsx';
 import ProjectOverview from './pages/ProjectOverview.jsx';
+import Dashboard from './pages/Dashboard.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import TaskList from './components/TaskList.jsx';
 import SectionedTaskList from './components/SectionedTaskList.jsx';
@@ -132,7 +133,7 @@ export default function App() {
   }, [user, activeWorkspaceId, refreshLookups]);
 
   const loadTasks = useCallback(() => {
-    if (!user || !activeWorkspaceId || view.type === 'settings' || view.type === 'admin' || view.type === 'guides') return;
+    if (!user || !activeWorkspaceId || view.type === 'settings' || view.type === 'admin' || view.type === 'guides' || view.type === 'dashboard') return;
     setLoadingTasks(true);
     const params = {};
     if (view.type === 'today') {
@@ -232,6 +233,10 @@ export default function App() {
   const currentProject = view.type === 'project' ? projects.find((p) => p.id === view.id) : null;
   const activeWorkspaceRole = workspaces.find((w) => w.id === activeWorkspaceId)?.my_role;
   const isViewer = activeWorkspaceRole === 'viewer';
+  // The org owner always has full access to every workspace even without an
+  // explicit workspace_members row (e.g. opened via Admin's "Open" link) —
+  // activeWorkspaceRole is undefined in that case, so fall back to the org role.
+  const canSeeDashboard = ['owner', 'admin', 'manager'].includes(activeWorkspaceRole) || user.role === 'owner';
 
   const VIEW_META = {
     today: { icon: 'calendar', label: 'Today' },
@@ -239,6 +244,7 @@ export default function App() {
     mine: { icon: 'user', label: 'Assigned to me' },
     inbox: { icon: 'inbox', label: 'Inbox' },
     all: { icon: 'grid', label: 'All tasks' },
+    dashboard: { icon: 'chart', label: 'Dashboard' },
     settings: { icon: 'gear', label: 'Settings' },
     admin: { icon: 'shield', label: 'Admin' },
     guides: { icon: 'book', label: 'Guides' },
@@ -325,6 +331,7 @@ export default function App() {
         onClose={() => setSidebarOpen(false)}
         onLogout={handleLogout}
         readOnly={isViewer}
+        canSeeDashboard={canSeeDashboard}
         onProjectsChanged={refreshLookups}
         searchQuery={view.type === 'search' ? view.q : ''}
         onSearch={handleSearch}
@@ -386,6 +393,8 @@ export default function App() {
           />
         ) : view.type === 'guides' ? (
           <Guides isOwnerOrAdmin={user.role === 'owner' || user.role === 'admin'} />
+        ) : view.type === 'dashboard' ? (
+          <Dashboard onOpenProject={(id) => setView({ type: 'project', id, mode: 'overview' })} />
         ) : view.type === 'project' && (!view.mode || view.mode === 'overview') ? (
           currentProject && (
             <ProjectOverview

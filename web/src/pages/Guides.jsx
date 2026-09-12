@@ -96,6 +96,9 @@ export default function Guides({ isOwnerOrAdmin }) {
 
               <h4>Smart views</h4>
               <p>The sidebar's <strong>Today</strong>, <strong>Upcoming</strong>, <strong>Assigned to me</strong>, <strong>Inbox</strong>, and <strong>All tasks</strong> cut across every project — Today shows anything due on or before today, Inbox shows tasks with no project.</p>
+
+              <h4>Dashboard</h4>
+              <p>Manager, admin, and owner only. A workspace-wide rollup — project counts by stage, what's overdue and in which project, and who's carrying how many open tasks — for whoever's actually running the place rather than working one project at a time.</p>
             </>
           )}
 

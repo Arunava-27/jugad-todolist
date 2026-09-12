@@ -100,6 +100,7 @@ export const api = {
   updateProject: (id, data) => request(`/projects/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteProject: (id) => request(`/projects/${id}`, { method: 'DELETE' }),
   getProjectSummary: (id) => request(`/project-summary/${id}`),
+  getWorkspaceOverview: () => request('/overview'),
 
   listStakeholders: (projectId) => request(`/projects/${projectId}/stakeholders`),
   addStakeholder: (projectId, email) => request(`/projects/${projectId}/stakeholders`, { method: 'POST', body: JSON.stringify({ email }) }),
