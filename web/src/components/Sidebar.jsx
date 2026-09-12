@@ -15,7 +15,7 @@ const NEW_WORKSPACE = '__new__';
 export default function Sidebar({
   user, workspaces, activeWorkspaceId, onSwitchWorkspace, onCreateWorkspace,
   projects, labels, view, onSelectView, open, onClose, onLogout, onProjectsChanged,
-  searchQuery, onSearch,
+  searchQuery, onSearch, readOnly,
 }) {
   const [addingProject, setAddingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -141,7 +141,7 @@ export default function Sidebar({
         <div className="sidebar-section">
           <div className="sidebar-section-title">
             Projects
-            <button className="icon-btn" onClick={() => setAddingProject((s) => !s)} title="Add project"><Icon name="plus" size={14} /></button>
+            {!readOnly && <button className="icon-btn" onClick={() => setAddingProject((s) => !s)} title="Add project"><Icon name="plus" size={14} /></button>}
           </div>
           {addingProject && (
             <form onSubmit={submitNewProject} className="inline-add-form">

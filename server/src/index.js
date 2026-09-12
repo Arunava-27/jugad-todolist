@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import authRoutes from './routes/auth.js';
 import workspaceRoutes from './routes/workspaces.js';
+import inviteRoutes from './routes/invites.js';
 import adminRoutes from './routes/admin.js';
 import projectRoutes from './routes/projects.js';
 import taskRoutes from './routes/tasks.js';
@@ -40,6 +41,9 @@ app.use(cookieSession({
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 app.use('/api/auth', authRoutes);
+// Not behind requireAuth: GET /api/invites/:token must work for a visitor
+// who isn't signed in yet; the POST .../accept route requires auth itself.
+app.use('/api/invites', inviteRoutes);
 app.use('/api/workspaces', requireAuth, workspaceRoutes);
 app.use('/api/admin', requireAuth, requireAdmin, adminRoutes);
 app.use('/api/projects', requireAuth, requireWorkspace, projectRoutes);

@@ -1,13 +1,13 @@
 import { Router } from 'express';
+import crypto from 'node:crypto';
 import db, { seedDefaultWorkflow } from '../db/index.js';
+import { roleFor, atLeast } from '../lib/permissions.js';
+import { sendInviteEmail } from '../lib/email.js';
 
 const router = Router();
 
-function isManager(user, workspaceId) {
-  if (user.role === 'admin') return true;
-  const m = db.prepare('SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(workspaceId, user.id);
-  return m?.role === 'owner';
-}
+const INVITE_TTL_DAYS = 7;
+const VALID_INVITE_ROLES = ['admin', 'member', 'viewer']; // never 'owner' via invite
 
 router.get('/', (req, res) => {
   const rows = db.prepare(
@@ -38,7 +38,7 @@ router.patch('/:id', (req, res) => {
   const id = Number(req.params.id);
   const workspace = db.prepare('SELECT * FROM workspaces WHERE id = ?').get(id);
   if (!workspace) return res.status(404).json({ error: 'Workspace not found' });
-  if (!isManager(req.user, id)) return res.status(403).json({ error: 'Only the workspace owner or an admin can do that' });
+  if (!atLeast(roleFor(req.user, id), 'admin')) return res.status(403).json({ error: 'Only a workspace owner or admin can do that' });
 
   const name = (req.body?.name || '').trim();
   if (name) db.prepare('UPDATE workspaces SET name = ? WHERE id = ?').run(name, id);
@@ -49,43 +49,96 @@ router.delete('/:id', (req, res) => {
   const id = Number(req.params.id);
   const workspace = db.prepare('SELECT * FROM workspaces WHERE id = ?').get(id);
   if (!workspace) return res.status(404).json({ error: 'Workspace not found' });
-  if (!isManager(req.user, id)) return res.status(403).json({ error: 'Only the workspace owner or an admin can do that' });
+  // Deleting the workspace itself is owner-only — more permanent than
+  // anything an admin should be able to do unilaterally.
+  if (!atLeast(roleFor(req.user, id), 'owner')) return res.status(403).json({ error: 'Only a workspace owner can delete it' });
 
-  // No "at least one workspace must remain" guard — zero workspaces is a
-  // normal state now (there's no predefined/default one), not a dead end.
-  db.prepare('DELETE FROM workspaces WHERE id = ?').run(id); // members/projects/tasks/etc cascade
+  db.prepare('DELETE FROM workspaces WHERE id = ?').run(id); // members/projects/tasks/invites/etc cascade
   res.json({ ok: true });
 });
 
 router.get('/:id/members', (req, res) => {
   const id = Number(req.params.id);
-  const membership = db.prepare('SELECT * FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(id, req.user.id);
-  if (!membership && req.user.role !== 'admin') return res.status(403).json({ error: 'Not a member of this workspace' });
+  const role = roleFor(req.user, id);
+  if (!role) return res.status(403).json({ error: 'Not a member of this workspace' });
 
-  const rows = db.prepare(
+  const members = db.prepare(
     `SELECT u.id, u.name, u.email, wm.role
      FROM workspace_members wm JOIN users u ON u.id = wm.user_id
-     WHERE wm.workspace_id = ? ORDER BY wm.role = 'owner' DESC, u.name COLLATE NOCASE`
+     WHERE wm.workspace_id = ? ORDER BY wm.role = 'owner' DESC, wm.role = 'admin' DESC, u.name COLLATE NOCASE`
   ).all(id);
-  res.json(rows);
+
+  const invites = db.prepare(
+    `SELECT id, email, role, created_at, expires_at FROM invites
+     WHERE workspace_id = ? AND status = 'pending' ORDER BY created_at DESC`
+  ).all(id);
+
+  res.json({ members, invites });
 });
 
-router.post('/:id/members', (req, res) => {
+// Adds an existing user immediately, or creates + emails a pending invite
+// for an address with no account yet.
+router.post('/:id/members', async (req, res) => {
   const id = Number(req.params.id);
   const workspace = db.prepare('SELECT * FROM workspaces WHERE id = ?').get(id);
   if (!workspace) return res.status(404).json({ error: 'Workspace not found' });
-  if (!isManager(req.user, id)) return res.status(403).json({ error: 'Only the workspace owner or an admin can add members' });
+  if (!atLeast(roleFor(req.user, id), 'admin')) return res.status(403).json({ error: 'Only a workspace owner or admin can invite people' });
 
   const email = String(req.body?.email || '').trim().toLowerCase();
+  const role = VALID_INVITE_ROLES.includes(req.body?.role) ? req.body.role : 'member';
   if (!email) return res.status(400).json({ error: 'email is required' });
+
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-  if (!user) return res.status(404).json({ error: 'No account with that email — ask them to register first' });
+  if (user) {
+    const existing = db.prepare('SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(id, user.id);
+    if (existing) return res.status(409).json({ error: 'Already a member' });
+    db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(id, user.id, role);
+    return res.status(201).json({ status: 'added', member: { id: user.id, name: user.name, email: user.email, role } });
+  }
 
-  const existing = db.prepare('SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(id, user.id);
-  if (existing) return res.status(409).json({ error: 'Already a member' });
+  // No account yet — (re)issue a pending invite and email it.
+  const token = crypto.randomBytes(24).toString('hex');
+  const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const existingInvite = db.prepare("SELECT * FROM invites WHERE workspace_id = ? AND email = ? AND status = 'pending'").get(id, email);
+  if (existingInvite) {
+    db.prepare('UPDATE invites SET role = ?, token = ?, invited_by = ?, expires_at = ?, created_at = strftime(\'%Y-%m-%dT%H:%M:%fZ\', \'now\') WHERE id = ?')
+      .run(role, token, req.user.id, expiresAt, existingInvite.id);
+  } else {
+    db.prepare('INSERT INTO invites (workspace_id, email, role, token, invited_by, expires_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(id, email, role, token, req.user.id, expiresAt);
+  }
 
-  db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(id, user.id, 'member');
-  res.status(201).json({ id: user.id, name: user.name, email: user.email, role: 'member' });
+  const result = await sendInviteEmail({ to: email, inviterName: req.user.name, workspaceName: workspace.name, token });
+  res.status(201).json({ status: 'invited', email, role, emailSent: result.sent, inviteLink: result.sent ? undefined : result.link });
+});
+
+router.patch('/:id/members/:userId', (req, res) => {
+  const id = Number(req.params.id);
+  const targetUserId = Number(req.params.userId);
+  const workspace = db.prepare('SELECT * FROM workspaces WHERE id = ?').get(id);
+  if (!workspace) return res.status(404).json({ error: 'Workspace not found' });
+
+  const myRole = roleFor(req.user, id);
+  const target = db.prepare('SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(id, targetUserId);
+  if (!target) return res.status(404).json({ error: 'Not a member of this workspace' });
+
+  const newRole = req.body?.role;
+  if (!['owner', 'admin', 'member', 'viewer'].includes(newRole)) return res.status(400).json({ error: 'Invalid role' });
+
+  // Only an owner can promote to/demote from owner; admins can otherwise
+  // manage member/viewer/admin.
+  const touchesOwnership = target.role === 'owner' || newRole === 'owner';
+  if (!atLeast(myRole, touchesOwnership ? 'owner' : 'admin')) {
+    return res.status(403).json({ error: 'Only a workspace owner can change an owner’s role' });
+  }
+
+  if (target.role === 'owner' && newRole !== 'owner') {
+    const ownerCount = db.prepare("SELECT COUNT(*) c FROM workspace_members WHERE workspace_id = ? AND role = 'owner'").get(id).c;
+    if (ownerCount <= 1) return res.status(400).json({ error: 'Workspace needs at least one owner' });
+  }
+
+  db.prepare('UPDATE workspace_members SET role = ? WHERE workspace_id = ? AND user_id = ?').run(newRole, id, targetUserId);
+  res.json({ ok: true });
 });
 
 router.delete('/:id/members/:userId', (req, res) => {
@@ -95,17 +148,31 @@ router.delete('/:id/members/:userId', (req, res) => {
   if (!workspace) return res.status(404).json({ error: 'Workspace not found' });
 
   const isSelf = targetUserId === req.user.id;
-  if (!isSelf && !isManager(req.user, id)) {
-    return res.status(403).json({ error: 'Only the workspace owner or an admin can remove other members' });
+  const myRole = roleFor(req.user, id);
+  if (!isSelf && !atLeast(myRole, 'admin')) {
+    return res.status(403).json({ error: 'Only a workspace owner or admin can remove other members' });
   }
 
-  const ownerCount = db.prepare("SELECT COUNT(*) c FROM workspace_members WHERE workspace_id = ? AND role = 'owner'").get(id).c;
   const target = db.prepare('SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(id, targetUserId);
-  if (target?.role === 'owner' && ownerCount <= 1) {
-    return res.status(400).json({ error: 'Workspace needs at least one owner' });
+  if (target?.role === 'owner') {
+    if (!isSelf && !atLeast(myRole, 'owner')) return res.status(403).json({ error: 'Only a workspace owner can remove an owner' });
+    const ownerCount = db.prepare("SELECT COUNT(*) c FROM workspace_members WHERE workspace_id = ? AND role = 'owner'").get(id).c;
+    if (ownerCount <= 1) return res.status(400).json({ error: 'Workspace needs at least one owner' });
   }
 
   db.prepare('DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?').run(id, targetUserId);
+  res.json({ ok: true });
+});
+
+router.delete('/:id/invites/:inviteId', (req, res) => {
+  const id = Number(req.params.id);
+  const inviteId = Number(req.params.inviteId);
+  if (!atLeast(roleFor(req.user, id), 'admin')) return res.status(403).json({ error: 'Only a workspace owner or admin can revoke an invite' });
+
+  const invite = db.prepare('SELECT * FROM invites WHERE id = ? AND workspace_id = ?').get(inviteId, id);
+  if (!invite) return res.status(404).json({ error: 'Invite not found' });
+
+  db.prepare("UPDATE invites SET status = 'revoked' WHERE id = ?").run(inviteId);
   res.json({ ok: true });
 });
 

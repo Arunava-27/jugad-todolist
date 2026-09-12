@@ -3,7 +3,7 @@ import { parseQuickAdd } from '../lib/quickAddParser.js';
 import { formatDueDate } from '../lib/format.js';
 import Icon from './Icon.jsx';
 
-export default function QuickAdd({ onCreate, projects, priorities }) {
+export default function QuickAdd({ onCreate, projects, priorities, readOnly }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -40,6 +40,8 @@ export default function QuickAdd({ onCreate, projects, priorities }) {
       setSubmitting(false);
     }
   }
+
+  if (readOnly) return null;
 
   if (!open) {
     return (

@@ -10,6 +10,9 @@ services:
       ADMIN_NAME: ${ADMIN_NAME}
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
       SESSION_SECRET: ${SESSION_SECRET}
+      DOMAIN: ${DOMAIN}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM}
     volumes:
       - app-data:/data
     expose:

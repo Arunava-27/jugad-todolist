@@ -18,7 +18,7 @@ function myWorkspaces(userId) {
 }
 
 router.post('/register', (req, res) => {
-  const { email, name, password, workspaceName } = req.body || {};
+  const { email, name, password, workspaceName, inviteToken } = req.body || {};
   const cleanEmail = String(email || '').trim().toLowerCase();
   const cleanName = String(name || '').trim();
 
@@ -29,6 +29,18 @@ router.post('/register', (req, res) => {
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
   if (existing) return res.status(409).json({ error: 'An account with that email already exists' });
 
+  // Registering via an invite link joins that workspace instead of getting
+  // a personal one auto-created — the invite's own accept endpoint (called
+  // by the frontend right after this) does the actual joining, this just
+  // skips creating a workspace nobody asked for.
+  let pendingInvite = null;
+  if (inviteToken) {
+    pendingInvite = db.prepare("SELECT * FROM invites WHERE token = ? AND status = 'pending'").get(inviteToken);
+    if (pendingInvite && pendingInvite.email !== cleanEmail) {
+      return res.status(400).json({ error: 'This invite was sent to a different email address' });
+    }
+  }
+
   const passwordHash = bcrypt.hashSync(password, 10);
 
   const result = db.transaction(() => {
@@ -37,11 +49,13 @@ router.post('/register', (req, res) => {
     ).run(cleanEmail, cleanName, passwordHash, 'member');
     const userId = userInfo.lastInsertRowid;
 
-    const wsInfo = db.prepare('INSERT INTO workspaces (name, created_by) VALUES (?, ?)')
-      .run((workspaceName && workspaceName.trim()) || `${cleanName}'s Workspace`, userId);
-    const workspaceId = wsInfo.lastInsertRowid;
-    db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(workspaceId, userId, 'owner');
-    seedDefaultWorkflow(workspaceId);
+    if (!pendingInvite) {
+      const wsInfo = db.prepare('INSERT INTO workspaces (name, created_by) VALUES (?, ?)')
+        .run((workspaceName && workspaceName.trim()) || `${cleanName}'s Workspace`, userId);
+      const workspaceId = wsInfo.lastInsertRowid;
+      db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(workspaceId, userId, 'owner');
+      seedDefaultWorkflow(workspaceId);
+    }
 
     return userId;
   })();

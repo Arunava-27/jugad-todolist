@@ -54,6 +54,17 @@ Edit `.env` and fill in:
   locally where Node is installed, or `docker compose run --rm app node scripts/hash-password.js "your-password"`
   after step 6 below)
 - `SESSION_SECRET` = any long random string
+- `RESEND_API_KEY` / `EMAIL_FROM` = for emailing workspace invites (see below). Optional — invites
+  still work without it, they just aren't emailed (the link is logged server-side instead).
+
+**Setting up invite emails (optional but recommended):** create a free account at
+[resend.com](https://resend.com), add your domain under Domains and verify it (Resend gives you a
+few DNS records to add — TXT/MX for SPF and a TXT for DKIM; add those wherever your domain's DNS is
+actually hosted, ask if you want help finding that), then create an API key under API Keys. Set
+`RESEND_API_KEY` to that key and `EMAIL_FROM` to something on the verified domain, e.g.
+`Punchlist <invites@yourdomain.com>`. Without a verified domain you can still use Resend's shared
+`onboarding@resend.dev` sender, but it can only send to the email address on your own Resend account
+— fine for testing, not for real invites.
 
 There's no predefined workspace — the admin account starts in zero workspaces (a normal state) and
 creates its first one from the app itself, the same way any user does.

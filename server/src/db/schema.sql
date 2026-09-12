@@ -20,9 +20,25 @@ CREATE TABLE IF NOT EXISTS workspaces (
 CREATE TABLE IF NOT EXISTS workspace_members (
   workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  role TEXT NOT NULL DEFAULT 'member', -- 'owner' | 'member' (within this workspace)
+  role TEXT NOT NULL DEFAULT 'member', -- 'owner' | 'admin' | 'member' | 'viewer' (within this workspace)
   joined_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   PRIMARY KEY (workspace_id, user_id)
+);
+
+-- A pending email invitation to join a workspace, for an address that may
+-- or may not have a Punchlist account yet. Resolved by token (mailed as a
+-- link) rather than by id, so it can't be enumerated/guessed.
+CREATE TABLE IF NOT EXISTS invites (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member', -- role they'll be granted on acceptance; never 'owner'
+  token TEXT NOT NULL UNIQUE,
+  invited_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'accepted' | 'revoked'
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  expires_at TEXT NOT NULL,
+  accepted_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS projects (
@@ -144,6 +160,8 @@ CREATE TABLE IF NOT EXISTS attachments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_workspace_members_user ON workspace_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_invites_workspace ON invites(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_invites_email ON invites(email);
 CREATE INDEX IF NOT EXISTS idx_sections_project ON sections(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);

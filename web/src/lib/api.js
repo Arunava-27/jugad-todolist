@@ -64,18 +64,23 @@ async function upload(path, file) {
 
 export const api = {
   me: () => request('/auth/me'),
-  register: (email, name, password, workspaceName) =>
-    request('/auth/register', { method: 'POST', body: JSON.stringify({ email, name, password, workspaceName }) }),
+  register: (email, name, password, workspaceName, inviteToken) =>
+    request('/auth/register', { method: 'POST', body: JSON.stringify({ email, name, password, workspaceName, inviteToken }) }),
   login: (email, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   logout: () => request('/auth/logout', { method: 'POST' }),
+
+  getInvite: (token) => request(`/invites/${token}`),
+  acceptInvite: (token) => request(`/invites/${token}/accept`, { method: 'POST' }),
 
   listWorkspaces: () => request('/workspaces'),
   createWorkspace: (name) => request('/workspaces', { method: 'POST', body: JSON.stringify({ name }) }),
   updateWorkspace: (id, data) => request(`/workspaces/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteWorkspace: (id) => request(`/workspaces/${id}`, { method: 'DELETE' }),
   listWorkspaceMembers: (id) => request(`/workspaces/${id}/members`),
-  addWorkspaceMember: (id, email) => request(`/workspaces/${id}/members`, { method: 'POST', body: JSON.stringify({ email }) }),
+  addWorkspaceMember: (id, email, role) => request(`/workspaces/${id}/members`, { method: 'POST', body: JSON.stringify({ email, role }) }),
+  updateWorkspaceMember: (id, userId, role) => request(`/workspaces/${id}/members/${userId}`, { method: 'PATCH', body: JSON.stringify({ role }) }),
   removeWorkspaceMember: (id, userId) => request(`/workspaces/${id}/members/${userId}`, { method: 'DELETE' }),
+  revokeInvite: (id, inviteId) => request(`/workspaces/${id}/invites/${inviteId}`, { method: 'DELETE' }),
 
   adminListUsers: () => request('/admin/users'),
   adminUpdateUser: (id, data) => request(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),

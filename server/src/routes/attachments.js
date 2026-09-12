@@ -4,6 +4,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import db, { DATA_DIR } from '../db/index.js';
+import { roleFor, atLeast } from '../lib/permissions.js';
 
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -44,6 +45,10 @@ function canAccessWorkspace(user, workspaceId) {
   return !!db.prepare('SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(workspaceId, user.id);
 }
 
+function canWrite(user, workspaceId) {
+  return atLeast(roleFor(user, workspaceId), 'member');
+}
+
 const router = Router();
 
 router.post('/tasks/:taskId/attachments', (req, res) => {
@@ -54,6 +59,10 @@ router.post('/tasks/:taskId/attachments', (req, res) => {
     if (!task || !canAccessWorkspace(req.user, task.workspace_id)) {
       if (req.file) fs.unlink(req.file.path, () => {});
       return res.status(404).json({ error: 'Task not found' });
+    }
+    if (!canWrite(req.user, task.workspace_id)) {
+      if (req.file) fs.unlink(req.file.path, () => {});
+      return res.status(403).json({ error: 'Viewers have read-only access to this workspace' });
     }
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
@@ -91,6 +100,7 @@ router.delete('/attachments/:id', (req, res) => {
     `SELECT a.*, t.workspace_id FROM attachments a JOIN tasks t ON t.id = a.task_id WHERE a.id = ?`
   ).get(Number(req.params.id));
   if (!row || !canAccessWorkspace(req.user, row.workspace_id)) return res.status(404).json({ error: 'Not found' });
+  if (!canWrite(req.user, row.workspace_id)) return res.status(403).json({ error: 'Viewers have read-only access to this workspace' });
   db.prepare('DELETE FROM attachments WHERE id = ?').run(row.id);
   fs.unlink(path.join(UPLOAD_DIR, row.filename), () => {});
   res.json({ ok: true });

@@ -3,6 +3,7 @@ import { api, setActiveWorkspaceId } from './lib/api.js';
 import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
+import AcceptInvite from './pages/AcceptInvite.jsx';
 import CreateWorkspace from './pages/CreateWorkspace.jsx';
 import Settings from './pages/Settings.jsx';
 import Admin from './pages/Admin.jsx';
@@ -39,12 +40,60 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const preSearchViewRef = useRef({ type: 'today' });
 
+  const [inviteToken] = useState(() => new URLSearchParams(window.location.search).get('invite'));
+  const [inviteInfo, setInviteInfo] = useState(null);
+  const [inviteError, setInviteError] = useState('');
+  const [inviteResolved, setInviteResolved] = useState(false);
+  const [accepting, setAccepting] = useState(false);
+
   useEffect(() => {
     api.me()
       .then(({ user, workspaces }) => applyAuthResult({ user, workspaces }))
       .catch(() => setUser(null))
       .finally(() => setAuthChecked(true));
   }, []);
+
+  useEffect(() => {
+    if (!inviteToken) return;
+    api.getInvite(inviteToken)
+      .then(setInviteInfo)
+      .catch((err) => setInviteError(err.message || 'This invite link is invalid.'));
+  }, [inviteToken]);
+
+  function dismissInvite() {
+    setInviteResolved(true);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('invite');
+    window.history.replaceState({}, '', url);
+  }
+
+  async function handleAcceptNow() {
+    setAccepting(true);
+    try {
+      await api.acceptInvite(inviteToken);
+      applyAuthResult(await api.me());
+      dismissInvite();
+    } catch (err) {
+      setInviteError(err.message || 'Could not accept invite');
+    } finally {
+      setAccepting(false);
+    }
+  }
+
+  async function handleAuthAndAccept(authResult) {
+    setUser(authResult.user);
+    setAccepting(true);
+    try {
+      await api.acceptInvite(inviteToken);
+      applyAuthResult(await api.me());
+    } catch (err) {
+      setInviteError(err.message || 'Could not accept invite');
+      applyAuthResult(authResult);
+    } finally {
+      setAccepting(false);
+      dismissInvite();
+    }
+  }
 
   function applyAuthResult({ user, workspaces }) {
     setUser(user);
@@ -111,6 +160,39 @@ export default function App() {
   }, [loadSections]);
 
   if (!authChecked) return <div className="boot-screen">Loading…</div>;
+
+  if (inviteToken && !inviteResolved) {
+    if (user) {
+      return (
+        <AcceptInvite
+          info={inviteInfo}
+          error={inviteError}
+          user={user}
+          accepting={accepting}
+          onAcceptNow={handleAcceptNow}
+          onLogout={handleLogout}
+          onDismiss={dismissInvite}
+        />
+      );
+    }
+    if (authScreen === 'register') {
+      return <Register onRegistered={handleAuthAndAccept} onSwitchToLogin={() => setAuthScreen('login')} onBack={() => setAuthScreen('landing')} inviteToken={inviteToken} inviteInfo={inviteInfo} />;
+    }
+    if (authScreen === 'login') {
+      return <Login onLoggedIn={handleAuthAndAccept} onSwitchToRegister={() => setAuthScreen('register')} onBack={() => setAuthScreen('landing')} inviteInfo={inviteInfo} />;
+    }
+    return (
+      <AcceptInvite
+        info={inviteInfo}
+        error={inviteError}
+        user={null}
+        onSignIn={() => setAuthScreen('login')}
+        onRegister={() => setAuthScreen('register')}
+        onDismiss={dismissInvite}
+      />
+    );
+  }
+
   if (!user) {
     if (authScreen === 'register') {
       return <Register onRegistered={applyAuthResult} onSwitchToLogin={() => setAuthScreen('login')} onBack={() => setAuthScreen('landing')} />;
@@ -125,6 +207,8 @@ export default function App() {
   }
 
   const currentProject = view.type === 'project' ? projects.find((p) => p.id === view.id) : null;
+  const activeWorkspaceRole = workspaces.find((w) => w.id === activeWorkspaceId)?.my_role;
+  const isViewer = activeWorkspaceRole === 'viewer';
 
   const VIEW_META = {
     today: { icon: 'calendar', label: 'Today' },
@@ -215,6 +299,7 @@ export default function App() {
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onLogout={handleLogout}
+        readOnly={isViewer}
         onProjectsChanged={refreshLookups}
         searchQuery={view.type === 'search' ? view.q : ''}
         onSearch={handleSearch}
@@ -256,7 +341,7 @@ export default function App() {
           />
         ) : (
           <>
-            <QuickAdd onCreate={handleCreateTask} projects={projects} priorities={priorities} />
+            <QuickAdd onCreate={handleCreateTask} projects={projects} priorities={priorities} readOnly={isViewer} />
 
             {view.type === 'project' && view.mode === 'board' ? (
               <BoardView
