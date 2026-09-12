@@ -18,7 +18,8 @@ router.patch('/organization', (req, res) => {
 
 router.get('/users', (req, res) => {
   const rows = db.prepare(
-    `SELECT u.id, u.email, u.name, u.role, u.domain_id, d.name as domain_name, d.color as domain_color, u.is_active, u.created_at,
+    `SELECT u.id, u.email, u.name, u.role, u.domain_id, d.name as domain_name, d.color as domain_color,
+       u.weekly_capacity_hours, u.is_active, u.created_at,
        (SELECT COUNT(*) FROM workspace_members wm WHERE wm.user_id = u.id) as workspace_count
      FROM users u LEFT JOIN domains d ON d.id = u.domain_id
      WHERE u.organization_id = ? ORDER BY u.created_at`
@@ -120,7 +121,7 @@ router.patch('/users/:id', (req, res) => {
   const target = db.prepare('SELECT * FROM users WHERE id = ? AND organization_id = ?').get(id, req.user.organization_id);
   if (!target) return res.status(404).json({ error: 'User not found' });
 
-  const { role, is_active, team, domain_id } = req.body || {};
+  const { role, is_active, team, domain_id, weekly_capacity_hours } = req.body || {};
   if (id === req.user.id && is_active === false) {
     return res.status(400).json({ error: "You can't deactivate your own account" });
   }
@@ -149,6 +150,11 @@ router.patch('/users/:id', (req, res) => {
   if (is_active !== undefined) { fields.push('is_active = ?'); values.push(is_active ? 1 : 0); }
   if (team !== undefined) { fields.push('team = ?'); values.push(String(team).trim() || null); }
   if (domain_id !== undefined) { fields.push('domain_id = ?'); values.push(domain_id || null); }
+  if (weekly_capacity_hours !== undefined) {
+    const n = weekly_capacity_hours === null || weekly_capacity_hours === '' ? null : Number(weekly_capacity_hours);
+    if (n !== null && (!Number.isFinite(n) || n < 0)) return res.status(400).json({ error: 'Capacity must be a positive number of hours' });
+    fields.push('weekly_capacity_hours = ?'); values.push(n);
+  }
   if (fields.length) {
     values.push(id);
     db.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`).run(...values);

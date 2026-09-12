@@ -55,6 +55,18 @@ export default function Admin({ currentUserId, currentUserRole, onOpenWorkspace 
     }
   }
 
+  async function changeCapacity(u, value) {
+    const n = value.trim() === '' ? null : Number(value);
+    if (n === (u.weekly_capacity_hours ?? null)) return; // no real change — skip the round-trip
+    try {
+      await api.adminUpdateUser(u.id, { weekly_capacity_hours: n });
+      refresh();
+    } catch (err) {
+      alertDialog(err.message);
+      refresh(); // revert the input back to the real value
+    }
+  }
+
   async function toggleActive(u) {
     try {
       await api.adminUpdateUser(u.id, { is_active: !u.is_active });
@@ -135,7 +147,7 @@ export default function Admin({ currentUserId, currentUserRole, onOpenWorkspace 
               <div className="admin-table-wrap">
               <table className="admin-table">
                 <thead>
-                  <tr><th>Name</th><th>Email</th><th>Role</th><th>Domain</th><th>Workspaces</th><th>Status</th><th></th></tr>
+                  <tr><th>Name</th><th>Email</th><th>Role</th><th>Domain</th><th>Capacity</th><th>Workspaces</th><th>Status</th><th></th></tr>
                 </thead>
                 <tbody>
                   {users.map((u) => (
@@ -159,6 +171,17 @@ export default function Admin({ currentUserId, currentUserRole, onOpenWorkspace 
                           </select>
                         </td>
                         <td>
+                          <input
+                            type="number"
+                            min="0"
+                            className="admin-capacity-input"
+                            placeholder="40"
+                            defaultValue={u.weekly_capacity_hours ?? ''}
+                            onBlur={(e) => changeCapacity(u, e.target.value)}
+                            title="Weekly capacity in hours (blank = default of 40)"
+                          />
+                        </td>
+                        <td>
                           <button className="ghost" onClick={() => toggleExpand(u)}>
                             {u.workspace_count} — {expandedUserId === u.id ? 'Hide' : 'Manage access'}
                           </button>
@@ -177,7 +200,7 @@ export default function Admin({ currentUserId, currentUserRole, onOpenWorkspace 
                       </tr>
                       {expandedUserId === u.id && (
                         <tr>
-                          <td colSpan={7} className="admin-scope-cell">
+                          <td colSpan={8} className="admin-scope-cell">
                             {membershipsLoading ? (
                               <div className="settings-hint">Loading…</div>
                             ) : (

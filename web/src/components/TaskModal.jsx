@@ -3,9 +3,11 @@ import { api } from '../lib/api.js';
 import { confirmDialog } from '../lib/dialogs.js';
 import { colorForPerson, initials } from '../lib/format.js';
 import SubtaskList from './SubtaskList.jsx';
+import TaskActivity from './TaskActivity.jsx';
 import Icon from './Icon.jsx';
 
-export default function TaskModal({ task, projects, statuses, priorities, members, onClose, onUpdate, onDelete }) {
+export default function TaskModal({ task, projects, statuses, priorities, members, currentUserId, onClose, onUpdate, onDelete }) {
+  const [tab, setTab] = useState('Details');
   const [attachments, setAttachments] = useState(task.attachments || []);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -127,6 +129,15 @@ export default function TaskModal({ task, projects, statuses, priorities, member
           rows={3}
         />
 
+        <div className="modal-tabs">
+          <button type="button" className={tab === 'Details' ? 'active' : ''} onClick={() => setTab('Details')}>Details</button>
+          <button type="button" className={tab === 'Activity' ? 'active' : ''} onClick={() => setTab('Activity')}>Activity</button>
+        </div>
+
+        {tab === 'Activity' ? (
+          <TaskActivity taskId={task.id} currentUserId={currentUserId} />
+        ) : (
+        <>
         <div className="modal-grid">
           <label>
             Status
@@ -227,6 +238,8 @@ export default function TaskModal({ task, projects, statuses, priorities, member
             </label>
           </div>
         </div>
+        </>
+        )}
 
         <div className="modal-footer">
           <button
@@ -240,8 +253,14 @@ export default function TaskModal({ task, projects, statuses, priorities, member
             }}
           >Delete</button>
           <div className="modal-footer-right">
-            <button className="ghost" onClick={onClose}>Cancel</button>
-            <button onClick={save} disabled={saving || !form.title.trim()}>{saving ? 'Saving…' : 'Save'}</button>
+            {tab === 'Details' ? (
+              <>
+                <button className="ghost" onClick={onClose}>Cancel</button>
+                <button onClick={save} disabled={saving || !form.title.trim()}>{saving ? 'Saving…' : 'Save'}</button>
+              </>
+            ) : (
+              <button className="ghost" onClick={onClose}>Close</button>
+            )}
           </div>
         </div>
       </div>

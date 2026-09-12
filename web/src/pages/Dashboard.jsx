@@ -21,8 +21,6 @@ export default function Dashboard({ onOpenProject }) {
   if (loading) return <div className="empty-state">Loading…</div>;
   if (!data) return <div className="empty-state">Couldn't load the workspace overview.</div>;
 
-  const maxLoad = Math.max(1, ...data.by_person.map((p) => p.count));
-
   return (
     <div className="dashboard">
       <div className="dashboard-stats">
@@ -78,23 +76,42 @@ export default function Dashboard({ onOpenProject }) {
         </div>
 
         <div className="dashboard-block dashboard-block-wide">
-          <h3>Who's carrying what</h3>
+          <h3>Capacity</h3>
+          <p className="settings-hint" style={{ marginTop: -6 }}>
+            Estimated hours on open tasks vs. a weekly capacity (set per person in Admin → Users, 40h by
+            default). A rough gauge, not a schedule — it doesn't account for due dates, and a task with no
+            estimate still counts toward the task total but adds 0 hours here.
+          </p>
           {data.by_person.length === 0 ? (
             <p className="settings-hint">No open tasks are assigned to anyone yet.</p>
           ) : (
             <div className="dashboard-bars">
-              {data.by_person.map((p) => (
-                <div className="dashboard-bar-row" key={p.id}>
-                  <span className="dashboard-bar-label dashboard-person-label">
-                    <span className="avatar" style={{ background: colorForPerson(p.name) }}>{initials(p.name)}</span>
-                    {p.name}
-                  </span>
-                  <div className="dashboard-bar-track">
-                    <div className="dashboard-bar-fill" style={{ width: `${(p.count / maxLoad) * 100}%` }} />
+              {data.by_person.map((p) => {
+                const pct = p.capacity_hours > 0 ? (p.estimated_hours / p.capacity_hours) * 100 : 0;
+                const over = p.estimated_hours > p.capacity_hours;
+                const near = !over && pct >= 80;
+                return (
+                  <div className="dashboard-bar-row" key={p.id}>
+                    <span className="dashboard-bar-label dashboard-person-label">
+                      <span className="avatar" style={{ background: colorForPerson(p.name) }}>{initials(p.name)}</span>
+                      {p.name}
+                    </span>
+                    <div className="dashboard-bar-track">
+                      <div
+                        className="dashboard-bar-fill"
+                        style={{ width: `${Math.min(100, pct)}%`, background: over ? 'var(--danger)' : near ? '#b7791f' : 'var(--accent)' }}
+                      />
+                    </div>
+                    <span className="dashboard-bar-count" style={{ color: over ? 'var(--danger)' : undefined }}>
+                      {p.estimated_hours}h / {p.capacity_hours}h
+                    </span>
+                    <span className="settings-hint dashboard-task-count">
+                      {p.task_count} task{p.task_count === 1 ? '' : 's'}
+                      {p.unestimated_count > 0 && ` (${p.unestimated_count} unestimated)`}
+                    </span>
                   </div>
-                  <span className="dashboard-bar-count">{p.count} open</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

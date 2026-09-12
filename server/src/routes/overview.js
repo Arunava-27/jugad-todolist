@@ -4,6 +4,11 @@ import { atLeast } from '../lib/permissions.js';
 
 const router = Router();
 
+// Assumed weekly capacity for anyone who hasn't had a specific number set
+// (users.weekly_capacity_hours) — a rough, editable-per-person default
+// rather than a real HR setting.
+const DEFAULT_WEEKLY_CAPACITY_HOURS = 40;
+
 // A workspace-wide rollup for whoever actually runs the place — project
 // counts by stage, what's overdue and where, and who's carrying how much —
 // gated to manager+ same as the other cross-project actions (a developer's
@@ -36,12 +41,24 @@ router.get('/', (req, res) => {
   ).all(req.workspaceId, today);
   const overdueTotal = overdueByProject.reduce((sum, p) => sum + p.count, 0);
 
+  // "Open workload" is a rough gauge, not a real capacity calculation — it
+  // sums estimate_hours across every open (assigned, incomplete) task
+  // regardless of due date, compared against a weekly capacity. A task with
+  // no estimate contributes 0 hours but still counts toward task_count, so
+  // the UI can flag when the hours figure is likely an undercount.
   const byPerson = db.prepare(
-    `SELECT u.id, u.name, COUNT(*) count FROM task_members tm
+    `SELECT u.id, u.name, u.weekly_capacity_hours,
+       COUNT(*) task_count,
+       COALESCE(SUM(t.estimate_hours), 0) estimated_hours,
+       SUM(CASE WHEN t.estimate_hours IS NULL THEN 1 ELSE 0 END) unestimated_count
+     FROM task_members tm
      JOIN tasks t ON t.id = tm.task_id JOIN users u ON u.id = tm.user_id
      WHERE t.workspace_id = ? AND t.is_completed = 0 AND t.parent_task_id IS NULL
-     GROUP BY u.id ORDER BY count DESC`
-  ).all(req.workspaceId);
+     GROUP BY u.id ORDER BY estimated_hours DESC, task_count DESC`
+  ).all(req.workspaceId).map((p) => ({
+    ...p,
+    capacity_hours: p.weekly_capacity_hours ?? DEFAULT_WEEKLY_CAPACITY_HOURS,
+  }));
 
   res.json({
     project_count: projectCount,

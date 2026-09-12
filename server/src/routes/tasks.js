@@ -43,6 +43,13 @@ function setTaskMembers(workspaceId, taskId, userIds) {
   }
 }
 
+// System-logged change history + human comments, interleaved on one
+// timeline. `meta` is stored as JSON text; callers pass a plain object.
+function logActivity(taskId, userId, type, meta) {
+  db.prepare('INSERT INTO task_activity (task_id, user_id, type, meta) VALUES (?, ?, ?, ?)')
+    .run(taskId, userId || null, type, meta ? JSON.stringify(meta) : null);
+}
+
 function hydrateTask(task) {
   const labels = db.prepare(
     `SELECT l.name, l.color FROM labels l JOIN task_labels tl ON tl.label_id = l.id WHERE tl.task_id = ? ORDER BY l.name`
@@ -204,6 +211,7 @@ router.post('/', (req, res) => {
   const id = info.lastInsertRowid;
   if (b.labels) setTaskLabels(req.workspaceId, id, b.labels);
   if (b.member_ids) setTaskMembers(req.workspaceId, id, b.member_ids);
+  logActivity(id, req.user.id, 'created');
   res.status(201).json(hydrateTask(db.prepare('SELECT * FROM tasks WHERE id = ?').get(id)));
 });
 
@@ -278,6 +286,13 @@ router.patch('/:id', (req, res) => {
   updates.push('updated_at = ?');
   values.push(new Date().toISOString());
 
+  // Captured before the writes below so activity logging can diff old vs
+  // new without re-deriving every branch's logic (is_completed in
+  // particular can come from an explicit flag or be derived from status).
+  const oldMemberIds = 'member_ids' in b
+    ? db.prepare('SELECT user_id FROM task_members WHERE task_id = ?').all(id).map((r) => r.user_id)
+    : [];
+
   if (updates.length) {
     values.push(id);
     db.prepare(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`).run(...values);
@@ -285,7 +300,37 @@ router.patch('/:id', (req, res) => {
   if ('labels' in b) setTaskLabels(req.workspaceId, id, b.labels);
   if ('member_ids' in b) setTaskMembers(req.workspaceId, id, b.member_ids);
 
-  res.json(hydrateTask(db.prepare('SELECT * FROM tasks WHERE id = ?').get(id)));
+  const updated = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id);
+
+  if ('status' in b && b.status !== existing.status) {
+    logActivity(id, req.user.id, 'status', { from: existing.status, to: b.status });
+  }
+  if ('priority' in b && b.priority !== existing.priority) {
+    logActivity(id, req.user.id, 'priority', { from: existing.priority, to: b.priority });
+  }
+  if ('due_date' in b && (b.due_date || null) !== (existing.due_date || null)) {
+    logActivity(id, req.user.id, 'due_date', { from: existing.due_date, to: b.due_date });
+  }
+  if (!!updated.is_completed !== !!existing.is_completed) {
+    logActivity(id, req.user.id, updated.is_completed ? 'completed' : 'reopened');
+  }
+  if ('member_ids' in b) {
+    const newMemberIds = db.prepare('SELECT user_id FROM task_members WHERE task_id = ?').all(id).map((r) => r.user_id);
+    for (const uid of newMemberIds) {
+      if (!oldMemberIds.includes(uid)) {
+        const u = db.prepare('SELECT name FROM users WHERE id = ?').get(uid);
+        logActivity(id, req.user.id, 'assignee_added', { name: u?.name || 'Someone' });
+      }
+    }
+    for (const uid of oldMemberIds) {
+      if (!newMemberIds.includes(uid)) {
+        const u = db.prepare('SELECT name FROM users WHERE id = ?').get(uid);
+        logActivity(id, req.user.id, 'assignee_removed', { name: u?.name || 'Someone' });
+      }
+    }
+  }
+
+  res.json(hydrateTask(updated));
 });
 
 router.delete('/:id', (req, res) => {
@@ -299,6 +344,50 @@ router.delete('/:id', (req, res) => {
   ).all(id, id);
   db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
   for (const f of files) fs.unlink(path.join(UPLOAD_DIR, f.filename), () => {});
+  res.json({ ok: true });
+});
+
+// --- activity: a task's timeline (system-logged changes + human comments),
+// oldest first so it reads top-to-bottom like a conversation.
+
+function requireTask(req, res) {
+  const task = db.prepare('SELECT * FROM tasks WHERE id = ? AND workspace_id = ?').get(Number(req.params.id), req.workspaceId);
+  if (!task) { res.status(404).json({ error: 'Task not found' }); return null; }
+  return task;
+}
+
+router.get('/:id/activity', (req, res) => {
+  const task = requireTask(req, res);
+  if (!task) return;
+  const rows = db.prepare(
+    `SELECT a.id, a.type, a.body, a.meta, a.created_at, u.id as user_id, u.name as user_name
+     FROM task_activity a LEFT JOIN users u ON u.id = a.user_id
+     WHERE a.task_id = ? ORDER BY a.created_at ASC, a.id ASC`
+  ).all(task.id);
+  res.json(rows.map((r) => ({ ...r, meta: r.meta ? JSON.parse(r.meta) : null })));
+});
+
+router.post('/:id/comments', (req, res) => {
+  const task = requireTask(req, res);
+  if (!task) return;
+  const body = String(req.body?.body || '').trim();
+  if (!body) return res.status(400).json({ error: 'A comment needs some text' });
+  const info = db.prepare('INSERT INTO task_activity (task_id, user_id, type, body) VALUES (?, ?, ?, ?)').run(task.id, req.user.id, 'comment', body);
+  const row = db.prepare(
+    `SELECT a.id, a.type, a.body, a.meta, a.created_at, u.id as user_id, u.name as user_name
+     FROM task_activity a LEFT JOIN users u ON u.id = a.user_id WHERE a.id = ?`
+  ).get(info.lastInsertRowid);
+  res.status(201).json(row);
+});
+
+router.delete('/:id/activity/:activityId', (req, res) => {
+  const task = requireTask(req, res);
+  if (!task) return;
+  const entry = db.prepare('SELECT * FROM task_activity WHERE id = ? AND task_id = ?').get(Number(req.params.activityId), task.id);
+  if (!entry) return res.status(404).json({ error: 'Not found' });
+  if (entry.type !== 'comment') return res.status(400).json({ error: "Only comments can be deleted — system history can't be edited" });
+  if (entry.user_id !== req.user.id) return res.status(403).json({ error: 'You can only delete your own comments' });
+  db.prepare('DELETE FROM task_activity WHERE id = ?').run(entry.id);
   res.json({ ok: true });
 });
 

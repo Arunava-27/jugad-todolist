@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS users (
   domain_id INTEGER REFERENCES domains(id) ON DELETE SET NULL, -- their discipline (see `domains`); replaces the old free-text `team` column below
   team TEXT, -- superseded by domain_id (2026-09) — left in place, unused, rather than a destructive column drop
   is_active INTEGER NOT NULL DEFAULT 1,
+  weekly_capacity_hours INTEGER, -- for the Dashboard's capacity view; NULL means "use the default" (see overview.js)
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
@@ -193,6 +194,22 @@ CREATE TABLE IF NOT EXISTS attachments (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
+-- A task's timeline: human comments and system-logged changes interleaved,
+-- oldest first. `type = 'comment'` uses `body`; every other type is a
+-- system event logged by the server itself (never client-supplied) with
+-- structured details in `meta` (JSON, e.g. {"from":"Not started","to":"Done"})
+-- and `body` left NULL. See tasks.js's logActivity().
+CREATE TABLE IF NOT EXISTS task_activity (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  type TEXT NOT NULL, -- 'comment' | 'created' | 'status' | 'priority' | 'due_date' | 'assignee_added' | 'assignee_removed' | 'completed' | 'reopened'
+  body TEXT,
+  meta TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_activity_task ON task_activity(task_id);
 CREATE INDEX IF NOT EXISTS idx_workspace_members_user ON workspace_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_invites_workspace ON invites(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_invites_email ON invites(email);

@@ -75,6 +75,9 @@ export default function Guides({ isOwnerOrAdmin }) {
               <h3>Assignees &amp; attachments</h3>
               <p>Assign a task to real teammates from the task modal — click their name to toggle them on or off (their domain, if they have one, shows right on the chip). Drop image attachments onto a task from the same modal; they show as thumbnails.</p>
 
+              <h3>Comments &amp; activity</h3>
+              <p>Every task has an <strong>Activity</strong> tab alongside Details. It's one timeline, oldest first: your comments, plus a system-logged history of real changes — status, priority, due date, who got assigned or unassigned, completed/reopened. You can delete your own comments; the change history can't be edited, by anyone.</p>
+
               <h3>Finding what's assigned to you</h3>
               <p>The sidebar's <strong>Assigned to me</strong> smart view shows only your own open tasks across every project. On <strong>All tasks</strong> or inside a project, the "Everyone" dropdown at the top of the page narrows the list to one person at a time.</p>
             </>
@@ -98,7 +101,10 @@ export default function Guides({ isOwnerOrAdmin }) {
               <p>The sidebar's <strong>Today</strong>, <strong>Upcoming</strong>, <strong>Assigned to me</strong>, <strong>Inbox</strong>, and <strong>All tasks</strong> cut across every project — Today shows anything due on or before today, Inbox shows tasks with no project.</p>
 
               <h4>Dashboard</h4>
-              <p>Manager, admin, and owner only. A workspace-wide rollup — project counts by stage, what's overdue and in which project, and who's carrying how many open tasks — for whoever's actually running the place rather than working one project at a time.</p>
+              <p>Manager, admin, and owner only. A workspace-wide rollup — project counts by stage, what's overdue and in which project, and a capacity view of who's carrying how much — for whoever's actually running the place rather than working one project at a time. Click an overdue project to open it directly.</p>
+
+              <h4>Capacity</h4>
+              <p>Each open task's estimated hours are summed per person and compared against a weekly capacity (40 hours by default; override it per person in Admin → Users). It's a rough gauge, not a schedule — it ignores due dates entirely, and a task with no estimate still counts toward that person's task total but adds nothing to the hours figure. A bar past 80% turns amber; past 100%, red.</p>
             </>
           )}
 

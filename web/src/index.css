@@ -352,6 +352,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .modal-title-input { width: 100%; font-size: 18px; font-weight: 600; border: none; padding: 6px 0; margin-bottom: 4px; background: none; }
 .modal-title-input:focus { outline: none; }
 .modal-desc-input { width: 100%; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px; resize: vertical; margin-bottom: 12px; background: var(--panel); }
+.modal-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.modal-tabs button {
+  background: none; border: none; border-bottom: 2px solid transparent; padding: 7px 4px; margin-right: 14px;
+  font-size: 13px; color: var(--ink-soft); border-radius: 0;
+}
+.modal-tabs button.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
 .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
 .modal-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-soft); }
 .modal-grid .span-2 { grid-column: span 2; }
@@ -381,6 +387,21 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .attachment-add:hover { border-color: var(--accent); color: var(--accent); }
 .modal-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
 .modal-footer-right { display: flex; gap: 8px; }
+
+/* ---------- Task activity (comments + change history) ---------- */
+.task-activity-list { display: flex; flex-direction: column; gap: 10px; max-height: 320px; overflow-y: auto; margin-bottom: 14px; }
+.activity-event { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-soft); padding: 2px 0; }
+.activity-event .icon { flex-shrink: 0; }
+.activity-event-time { margin-left: auto; white-space: nowrap; }
+.activity-comment { display: flex; gap: 9px; }
+.activity-comment .avatar { flex-shrink: 0; margin-top: 2px; }
+.activity-comment-body { flex: 1; min-width: 0; background: var(--panel-sunk); border-radius: var(--radius-sm); padding: 8px 10px; }
+.activity-comment-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; font-size: 12.5px; }
+.activity-comment-body p { margin: 0; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; }
+.activity-comment-delete { margin-left: auto; opacity: 0.5; }
+.activity-comment-delete:hover { opacity: 1; }
+.activity-comment-form { display: flex; gap: 8px; align-items: flex-end; }
+.activity-comment-form textarea { flex: 1; resize: vertical; font-family: inherit; }
 
 button.danger { background: none; border: 1px solid var(--danger); color: var(--danger); padding: 8px 14px; border-radius: var(--radius-sm); }
 button.ghost { background: none; border: 1px solid var(--line); padding: 8px 14px; border-radius: var(--radius-sm); color: var(--ink); }
@@ -474,7 +495,8 @@ button.ghost { background: none; border: 1px solid var(--line); padding: 8px 14p
 
 /* ---------- Admin ---------- */
 .admin-table-wrap { overflow-x: auto; }
-.admin-table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 13px; }
+.admin-table { width: 100%; min-width: 800px; border-collapse: collapse; font-size: 13px; }
+.admin-capacity-input { width: 60px; }
 .admin-table th {
   text-align: left; font-weight: 600; color: var(--ink-soft); font-size: 12px;
   padding: 8px; border-bottom: 1px solid var(--line);
@@ -553,8 +575,13 @@ button.ghost { background: none; border: 1px solid var(--line); padding: 8px 14p
 .dashboard-person-label .avatar { width: 20px; height: 20px; font-size: 9px; flex-shrink: 0; }
 .dashboard-bar-track { flex: 1; height: 8px; border-radius: 4px; background: var(--panel-sunk); overflow: hidden; }
 .dashboard-bar-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.2s; }
-.dashboard-bar-count { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-soft); width: 60px; text-align: right; flex-shrink: 0; }
+.dashboard-bar-count { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-soft); width: 80px; text-align: right; flex-shrink: 0; }
+.dashboard-task-count { width: 130px; text-align: right; flex-shrink: 0; white-space: nowrap; }
 .dashboard-clickable-row { width: 100%; text-align: left; cursor: pointer; }
+@media (max-width: 620px) {
+  .dashboard-bar-row { flex-wrap: wrap; }
+  .dashboard-task-count { width: auto; margin-left: 146px; }
+}
 @media (max-width: 760px) {
   .dashboard-grid { grid-template-columns: 1fr; }
   .dashboard-stats { flex-wrap: wrap; }

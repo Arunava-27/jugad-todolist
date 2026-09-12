@@ -202,6 +202,9 @@ if (!hasColumn('users', 'team')) {
 if (!hasColumn('users', 'domain_id')) {
   db.exec('ALTER TABLE users ADD COLUMN domain_id INTEGER REFERENCES domains(id) ON DELETE SET NULL');
 }
+if (!hasColumn('users', 'weekly_capacity_hours')) {
+  db.exec('ALTER TABLE users ADD COLUMN weekly_capacity_hours INTEGER');
+}
 if (!hasColumn('invites', 'project_id')) {
   db.exec('ALTER TABLE invites ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE');
 }

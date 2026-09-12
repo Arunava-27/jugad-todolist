@@ -118,6 +118,10 @@ export const api = {
   listSubtasks: (parentTaskId) => request(`/tasks?parent_task_id=${parentTaskId}`),
   createSubtask: (parentTaskId, title) => request('/tasks', { method: 'POST', body: JSON.stringify({ title, parent_task_id: parentTaskId }) }),
 
+  listTaskActivity: (taskId) => request(`/tasks/${taskId}/activity`),
+  addTaskComment: (taskId, body) => request(`/tasks/${taskId}/comments`, { method: 'POST', body: JSON.stringify({ body }) }),
+  deleteTaskActivity: (taskId, activityId) => request(`/tasks/${taskId}/activity/${activityId}`, { method: 'DELETE' }),
+
   listLabels: () => request('/labels'),
   createLabel: (data) => request('/labels', { method: 'POST', body: JSON.stringify(data) }),
   updateLabel: (id, data) => request(`/labels/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),

@@ -449,6 +449,7 @@ export default function App() {
           statuses={statuses}
           priorities={priorities}
           members={members}
+          currentUserId={user.id}
           onClose={() => setActiveTask(null)}
           onUpdate={handleUpdateTask}
           onDelete={handleDeleteTask}
