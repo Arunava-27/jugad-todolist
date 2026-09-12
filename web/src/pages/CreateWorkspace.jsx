@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Logo } from '../components/Icon.jsx';
 
 // Shown when a signed-in user belongs to zero workspaces — a normal state
-// now that there's no predefined/default workspace, and only the owner
-// (site admin) creates workspaces at all. A non-owner with no workspace
+// now that there's no predefined/default workspace, and only the org's
+// owner creates workspaces at all. A non-owner with no workspace
 // isn't stuck exactly, but there's nothing for them to do here except wait
 // to be added to one — so they get a plain waiting message, not a form
 // they don't have permission to submit.

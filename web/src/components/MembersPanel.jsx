@@ -3,14 +3,14 @@ import { api } from '../lib/api.js';
 import { alertDialog, confirmDialog } from '../lib/dialogs.js';
 import Icon from './Icon.jsx';
 
-const ROLES = ['owner', 'admin', 'member', 'viewer'];
-const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', member: 'Member', viewer: 'Viewer' };
+const ROLES = ['owner', 'admin', 'manager', 'developer', 'viewer'];
+const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', manager: 'Manager', developer: 'Developer', viewer: 'Viewer' };
 
 export default function MembersPanel({ workspaceId, currentUserId }) {
   const [members, setMembers] = useState([]);
   const [invites, setInvites] = useState([]);
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('member');
+  const [role, setRole] = useState('developer');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [adding, setAdding] = useState(false);
@@ -130,7 +130,8 @@ export default function MembersPanel({ workspaceId, currentUserId }) {
         />
         <select value={role} onChange={(e) => setRole(e.target.value)} title="Role to invite as">
           <option value="admin">Admin</option>
-          <option value="member">Member</option>
+          <option value="manager">Manager</option>
+          <option value="developer">Developer</option>
           <option value="viewer">Viewer</option>
         </select>
         <button type="submit" disabled={adding || !email.trim()}>{adding ? 'Sending…' : 'Invite'}</button>
@@ -140,6 +141,8 @@ export default function MembersPanel({ workspaceId, currentUserId }) {
       <p className="settings-hint" style={{ marginTop: 10 }}>
         Already have an account here? They're added right away. Otherwise we email them an invite link
         to join — <strong>Viewer</strong>s can see everything but can't create or change anything;
+        <strong> Developer</strong>s do the day-to-day work; <strong>Manager</strong>s also run projects,
+        sections and task assignment for the team, but not membership or settings;
         <strong> Admin</strong>s can also manage members and workspace settings.
       </p>
     </div>

@@ -107,7 +107,7 @@ export default function Sidebar({
           {workspaces.map((w) => (
             <option key={w.id} value={w.id}>{w.name}</option>
           ))}
-          {user.role === 'admin' && <option value={NEW_WORKSPACE}>+ New workspace…</option>}
+          {user.role === 'owner' && <option value={NEW_WORKSPACE}>+ New workspace…</option>}
         </select>
 
         <form className="sidebar-search" onSubmit={submitSearch}>
@@ -176,7 +176,7 @@ export default function Sidebar({
           className={`nav-item ${view.type === 'settings' ? 'active' : ''}`}
           onClick={() => onSelectView({ type: 'settings' })}
         ><span className="nav-icon"><Icon name="gear" size={16} /></span> Settings</button>
-        {user.role === 'admin' && (
+        {(user.role === 'owner' || user.role === 'admin') && (
           <button
             className={`nav-item ${view.type === 'admin' ? 'active' : ''}`}
             onClick={() => onSelectView({ type: 'admin' })}

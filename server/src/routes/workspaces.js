@@ -7,7 +7,7 @@ import { sendInviteEmail } from '../lib/email.js';
 const router = Router();
 
 const INVITE_TTL_DAYS = 7;
-const VALID_INVITE_ROLES = ['admin', 'member', 'viewer']; // never 'owner' via invite
+const VALID_INVITE_ROLES = ['admin', 'manager', 'developer', 'viewer']; // never 'owner' via invite
 
 router.get('/', (req, res) => {
   const rows = db.prepare(
@@ -20,16 +20,16 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  // Only the owner (site admin) creates workspaces — everyone else gets
-  // assigned into one by the owner (an invite, or being added by an
-  // existing account's email) rather than spinning up their own.
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Only the owner can create a workspace' });
+  // Only the org's owner creates workspaces — everyone else gets assigned
+  // into one by the owner (an invite, or being added by an existing
+  // account's email) rather than spinning up their own.
+  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Only the organization owner can create a workspace' });
 
   const name = (req.body?.name || '').trim();
   if (!name) return res.status(400).json({ error: 'name is required' });
 
   const workspaceId = db.transaction(() => {
-    const info = db.prepare('INSERT INTO workspaces (name, created_by) VALUES (?, ?)').run(name, req.user.id);
+    const info = db.prepare('INSERT INTO workspaces (organization_id, name, created_by) VALUES (?, ?, ?)').run(req.user.organization_id, name, req.user.id);
     const id = info.lastInsertRowid;
     db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(id, req.user.id, 'owner');
     seedDefaultWorkflow(id);
@@ -90,11 +90,14 @@ router.post('/:id/members', async (req, res) => {
   if (!atLeast(roleFor(req.user, id), 'admin')) return res.status(403).json({ error: 'Only a workspace owner or admin can invite people' });
 
   const email = String(req.body?.email || '').trim().toLowerCase();
-  const role = VALID_INVITE_ROLES.includes(req.body?.role) ? req.body.role : 'member';
+  const role = VALID_INVITE_ROLES.includes(req.body?.role) ? req.body.role : 'developer';
   if (!email) return res.status(400).json({ error: 'email is required' });
 
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
   if (user) {
+    if (user.organization_id !== workspace.organization_id) {
+      return res.status(409).json({ error: 'That email already belongs to an account in a different organization' });
+    }
     const existing = db.prepare('SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(id, user.id);
     if (existing) return res.status(409).json({ error: 'Already a member' });
     db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(id, user.id, role);
@@ -128,7 +131,7 @@ router.patch('/:id/members/:userId', (req, res) => {
   if (!target) return res.status(404).json({ error: 'Not a member of this workspace' });
 
   const newRole = req.body?.role;
-  if (!['owner', 'admin', 'member', 'viewer'].includes(newRole)) return res.status(400).json({ error: 'Invalid role' });
+  if (!['owner', 'admin', 'manager', 'developer', 'viewer'].includes(newRole)) return res.status(400).json({ error: 'Invalid role' });
 
   // Only an owner can promote to/demote from owner; admins can otherwise
   // manage member/viewer/admin.

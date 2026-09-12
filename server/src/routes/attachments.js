@@ -41,12 +41,11 @@ function attachmentUrl(a) {
 // check membership directly, rather than relying on the requireWorkspace
 // middleware used by the other data routes.
 function canAccessWorkspace(user, workspaceId) {
-  if (user.role === 'admin') return true;
-  return !!db.prepare('SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(workspaceId, user.id);
+  return !!roleFor(user, workspaceId);
 }
 
 function canWrite(user, workspaceId) {
-  return atLeast(roleFor(user, workspaceId), 'member');
+  return atLeast(roleFor(user, workspaceId), 'developer');
 }
 
 const router = Router();

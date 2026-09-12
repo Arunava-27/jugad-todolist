@@ -6,7 +6,7 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 
 function publicUser(user) {
-  return { id: user.id, email: user.email, name: user.name, role: user.role };
+  return { id: user.id, email: user.email, name: user.name, role: user.role, team: user.team, organizationId: user.organization_id };
 }
 
 function myWorkspaces(userId) {
@@ -17,8 +17,18 @@ function myWorkspaces(userId) {
   ).all(userId);
 }
 
+function slugify(name) {
+  const base = String(name).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'org';
+  let slug = base;
+  let n = 1;
+  while (db.prepare('SELECT 1 FROM organizations WHERE slug = ?').get(slug)) {
+    slug = `${base}-${++n}`;
+  }
+  return slug;
+}
+
 router.post('/register', (req, res) => {
-  const { email, name, password, inviteToken } = req.body || {};
+  const { email, name, password, inviteToken, organizationName } = req.body || {};
   const cleanEmail = String(email || '').trim().toLowerCase();
   const cleanName = String(name || '').trim();
 
@@ -29,24 +39,37 @@ router.post('/register', (req, res) => {
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
   if (existing) return res.status(409).json({ error: 'An account with that email already exists' });
 
-  // No workspace is ever auto-created here — only the owner (site admin)
-  // creates workspaces, and assigns people into them (by role) via invites
-  // or by adding an existing account's email. Registering via an invite
-  // link still joins that workspace, via the invite's own accept endpoint
-  // (called by the frontend right after this); registering without one
-  // just creates the account, landing on the "waiting for a workspace"
-  // screen until the owner adds them to one.
+  // Two ways to land here: with an invite token (joining an organization
+  // someone already inside it invited you to — the frontend calls the
+  // invite's own accept endpoint right after this, which is what actually
+  // adds the workspace membership) or with an organization name (founding
+  // a brand new organization, of which you become the owner). No workspace
+  // is ever auto-created either way — only an org's owner/admin creates
+  // workspaces, and assigns people into them via invites.
+  let organizationId;
+  let role;
+
   if (inviteToken) {
     const pendingInvite = db.prepare("SELECT * FROM invites WHERE token = ? AND status = 'pending'").get(inviteToken);
     if (pendingInvite && pendingInvite.email !== cleanEmail) {
       return res.status(400).json({ error: 'This invite was sent to a different email address' });
     }
+    if (!pendingInvite) return res.status(400).json({ error: 'This invite is no longer valid' });
+    const workspace = db.prepare('SELECT organization_id FROM workspaces WHERE id = ?').get(pendingInvite.workspace_id);
+    organizationId = workspace.organization_id;
+    role = 'developer'; // base org rank for anyone joining via invite; their workspace-level role comes from the invite itself
+  } else {
+    const cleanOrgName = String(organizationName || '').trim();
+    if (!cleanOrgName) return res.status(400).json({ error: 'Organization name is required' });
+    const info = db.prepare('INSERT INTO organizations (name, slug) VALUES (?, ?)').run(cleanOrgName, slugify(cleanOrgName));
+    organizationId = info.lastInsertRowid;
+    role = 'owner';
   }
 
   const passwordHash = bcrypt.hashSync(password, 10);
   const info = db.prepare(
-    'INSERT INTO users (email, name, password_hash, role, is_active) VALUES (?, ?, ?, ?, 1)'
-  ).run(cleanEmail, cleanName, passwordHash, 'member');
+    'INSERT INTO users (organization_id, email, name, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?, 1)'
+  ).run(organizationId, cleanEmail, cleanName, passwordHash, role);
 
   req.session.userId = info.lastInsertRowid;
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);

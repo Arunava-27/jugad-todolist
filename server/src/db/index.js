@@ -161,6 +161,43 @@ for (const table of ['labels', 'assignees']) {
   }
 }
 
+// --- multi-organization support (added after the initial single-tenant release) ---
+if (!hasColumn('users', 'organization_id')) {
+  db.exec('ALTER TABLE users ADD COLUMN organization_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE');
+}
+if (!hasColumn('users', 'team')) {
+  db.exec('ALTER TABLE users ADD COLUMN team TEXT');
+}
+if (!hasColumn('workspaces', 'organization_id')) {
+  db.exec('ALTER TABLE workspaces ADD COLUMN organization_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE');
+}
+db.exec('CREATE INDEX IF NOT EXISTS idx_users_organization ON users(organization_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_workspaces_organization ON workspaces(organization_id)');
+
+// One-time backfill for a database that predates organizations: everything
+// in it belonged to a single implicit org, so give it a real one and carry
+// its users/workspaces over — and translate the old two-tier role vocabulary
+// ('admin' | 'member') to the new five-tier one ('owner' | 'admin' |
+// 'manager' | 'developer' | 'viewer'): the old site admin becomes the org's
+// owner, everyone else becomes a 'developer'.
+const orphanUserCount = db.prepare('SELECT COUNT(*) c FROM users WHERE organization_id IS NULL').get().c;
+const orphanWorkspaceCount = db.prepare('SELECT COUNT(*) c FROM workspaces WHERE organization_id IS NULL').get().c;
+if (orphanUserCount > 0 || orphanWorkspaceCount > 0) {
+  db.transaction(() => {
+    let defaultOrg = db.prepare('SELECT id FROM organizations ORDER BY id LIMIT 1').get();
+    if (!defaultOrg) {
+      const info = db.prepare('INSERT INTO organizations (name, slug) VALUES (?, ?)').run('My Organization', 'default');
+      defaultOrg = { id: info.lastInsertRowid };
+    }
+    db.prepare('UPDATE users SET organization_id = ? WHERE organization_id IS NULL').run(defaultOrg.id);
+    db.prepare('UPDATE workspaces SET organization_id = ? WHERE organization_id IS NULL').run(defaultOrg.id);
+    db.prepare("UPDATE users SET role = 'owner' WHERE role = 'admin'").run();
+    db.prepare("UPDATE users SET role = 'developer' WHERE role = 'member'").run();
+    db.prepare("UPDATE workspace_members SET role = 'developer' WHERE role = 'member'").run();
+    db.prepare("UPDATE invites SET role = 'developer' WHERE role = 'member' AND status = 'pending'").run();
+  })();
+}
+
 // Now that every table definitely has workspace_id (and correct FK text),
 // it's safe to index it and turn foreign key enforcement back on.
 db.exec(`
@@ -199,13 +236,16 @@ export function seedDefaultWorkflow(workspaceId) {
 
 // --- seed the admin account from env. This runs on every boot, not just
 // the very first one — e.g. if ADMIN_EMAIL is later changed to a different
-// address, that new admin account gets created here too.
+// address, that new admin account gets created here too. This account is
+// the *owner* of its own organization (creating one if none exists yet),
+// same as anyone who self-registers an org — it's just provisioned from
+// env instead of through the Register screen.
 //
 // Deliberately does NOT create or join any workspace on the admin's behalf
-// (there is no "predefined workspace" — an admin with zero workspaces is a
-// normal, supported state; see App.jsx's create-workspace prompt). Admins
-// reach every workspace regardless via the Admin screen, and can create a
-// fresh one from the sidebar whenever they actually need one.
+// (there is no "predefined workspace" — an owner with zero workspaces is a
+// normal, supported state; see App.jsx's create-workspace prompt). Org
+// owners reach every workspace in their org regardless via the Admin
+// screen, and can create a fresh one from the sidebar whenever needed.
 const adminEmail = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
 const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
 const adminName = process.env.ADMIN_NAME || 'Admin';
@@ -213,12 +253,17 @@ const adminName = process.env.ADMIN_NAME || 'Admin';
 if (adminEmail && adminPasswordHash) {
   const admin = db.prepare('SELECT * FROM users WHERE email = ?').get(adminEmail);
   if (!admin) {
+    let org = db.prepare('SELECT id FROM organizations ORDER BY id LIMIT 1').get();
+    if (!org) {
+      const info = db.prepare('INSERT INTO organizations (name, slug) VALUES (?, ?)').run('My Organization', 'default');
+      org = { id: info.lastInsertRowid };
+    }
     db.prepare(
-      'INSERT INTO users (email, name, password_hash, role, is_active) VALUES (?, ?, ?, ?, 1)'
-    ).run(adminEmail, adminName, adminPasswordHash, 'admin');
-  } else if (admin.role !== 'admin') {
-    // Env is the source of truth for who the admin is.
-    db.prepare('UPDATE users SET role = ? WHERE id = ?').run('admin', admin.id);
+      'INSERT INTO users (organization_id, email, name, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?, 1)'
+    ).run(org.id, adminEmail, adminName, adminPasswordHash, 'owner');
+  } else if (admin.role !== 'owner') {
+    // Env is the source of truth for who this org's owner is.
+    db.prepare('UPDATE users SET role = ? WHERE id = ?').run('owner', admin.id);
   }
 }
 

@@ -1,17 +1,31 @@
 -- Punchlist schema
 
+-- A tenant. Whoever registers without an invite founds one of these and
+-- becomes its 'owner'; everyone else in it either founded it or was invited
+-- in by someone already inside it. Workspaces and users each belong to
+-- exactly one organization — there's no cross-org visibility anywhere.
+CREATE TABLE IF NOT EXISTS organizations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  organization_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
   email TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
   password_hash TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'member', -- 'admin' | 'member'
+  role TEXT NOT NULL DEFAULT 'developer', -- rank within their org: 'owner' | 'admin' | 'manager' | 'developer' | 'viewer'
+  team TEXT, -- free-text label ("Backend", "QA", "Cloud/DevOps", ...) — descriptive only, carries no permissions
   is_active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
 CREATE TABLE IF NOT EXISTS workspaces (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  organization_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
@@ -20,7 +34,7 @@ CREATE TABLE IF NOT EXISTS workspaces (
 CREATE TABLE IF NOT EXISTS workspace_members (
   workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  role TEXT NOT NULL DEFAULT 'member', -- 'owner' | 'admin' | 'member' | 'viewer' (within this workspace)
+  role TEXT NOT NULL DEFAULT 'developer', -- 'owner' | 'admin' | 'manager' | 'developer' | 'viewer' (within this workspace)
   joined_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   PRIMARY KEY (workspace_id, user_id)
 );
@@ -32,7 +46,7 @@ CREATE TABLE IF NOT EXISTS invites (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'member', -- role they'll be granted on acceptance; never 'owner'
+  role TEXT NOT NULL DEFAULT 'developer', -- role they'll be granted on acceptance; never 'owner'
   token TEXT NOT NULL UNIQUE,
   invited_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'accepted' | 'revoked'

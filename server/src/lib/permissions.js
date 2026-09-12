@@ -1,28 +1,31 @@
-// Workspace role hierarchy: viewer < member < admin < owner.
-// A site admin (users.role === 'admin') is treated as an owner of every
-// workspace for permission purposes, same as elsewhere in the app.
 import db from '../db/index.js';
 
-const RANK = { viewer: 0, member: 1, admin: 2, owner: 3 };
+// Five-tier role vocabulary, shared by org-level (users.role) and
+// workspace-level (workspace_members.role) roles. 'manager' sits between a
+// contributor and someone who can touch settings: manager can run the day
+// to day work of a workspace (assign tasks, manage projects/sections/
+// statuses) but — same as a developer or viewer — can't invite/remove
+// people, change roles, or touch workspace settings; that stays admin+.
+export const ROLES = ['owner', 'admin', 'manager', 'developer', 'viewer'];
+export const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', manager: 'Manager', developer: 'Developer', viewer: 'Viewer' };
+const RANK = { viewer: 0, developer: 1, manager: 2, admin: 3, owner: 4 };
 
+// A user's effective role within one workspace — or null if they have none
+// (not a member, or the workspace belongs to a different organization
+// entirely; there is no cross-org access anywhere in the app).
 export function roleFor(user, workspaceId) {
-  if (user.role === 'admin') return 'owner';
+  const workspace = db.prepare('SELECT organization_id FROM workspaces WHERE id = ?').get(workspaceId);
+  if (!workspace || workspace.organization_id !== user.organization_id) return null;
+
+  // The org's owner has blanket access to every workspace inside their own
+  // org, without needing an explicit workspace_members row — same shortcut
+  // as the old single-tier "admin" role, just renamed.
+  if (user.role === 'owner') return 'owner';
+
   const m = db.prepare('SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(workspaceId, user.id);
   return m?.role || null;
 }
 
 export function atLeast(role, min) {
   return (RANK[role] ?? -1) >= (RANK[min] ?? 99);
-}
-
-// Middleware factory: requires requireWorkspace to have already run (needs
-// req.workspaceRole). Use for member/invite management and workspace
-// settings that a plain member/viewer shouldn't be able to touch.
-export function requireWorkspaceRole(min) {
-  return (req, res, next) => {
-    if (!atLeast(req.workspaceRole, min)) {
-      return res.status(403).json({ error: `Only a workspace ${min === 'admin' ? 'owner or admin' : min} can do that` });
-    }
-    next();
-  };
 }

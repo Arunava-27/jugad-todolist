@@ -64,8 +64,8 @@ async function upload(path, file) {
 
 export const api = {
   me: () => request('/auth/me'),
-  register: (email, name, password, inviteToken) =>
-    request('/auth/register', { method: 'POST', body: JSON.stringify({ email, name, password, inviteToken }) }),
+  register: (email, name, password, { inviteToken, organizationName } = {}) =>
+    request('/auth/register', { method: 'POST', body: JSON.stringify({ email, name, password, inviteToken, organizationName }) }),
   login: (email, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   logout: () => request('/auth/logout', { method: 'POST' }),
 
@@ -82,8 +82,12 @@ export const api = {
   removeWorkspaceMember: (id, userId) => request(`/workspaces/${id}/members/${userId}`, { method: 'DELETE' }),
   revokeInvite: (id, inviteId) => request(`/workspaces/${id}/invites/${inviteId}`, { method: 'DELETE' }),
 
+  adminGetOrganization: () => request('/admin/organization'),
+  adminUpdateOrganization: (data) => request('/admin/organization', { method: 'PATCH', body: JSON.stringify(data) }),
   adminListUsers: () => request('/admin/users'),
   adminUpdateUser: (id, data) => request(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  adminDeleteUser: (id) => request(`/admin/users/${id}`, { method: 'DELETE' }),
+  adminUserMemberships: (id) => request(`/admin/users/${id}/memberships`),
   adminListWorkspaces: () => request('/admin/workspaces'),
 
   listProjects: () => request('/projects'),

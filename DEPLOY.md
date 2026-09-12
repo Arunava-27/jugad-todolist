@@ -66,17 +66,27 @@ actually hosted, ask if you want help finding that), then create an API key unde
 `onboarding@resend.dev` sender, but it can only send to the email address on your own Resend account
 — fine for testing, not for real invites.
 
-There's no predefined workspace, and only the owner (the seeded admin account) can create one — from
-the app itself, the same "create a workspace" screen anyone with zero workspaces sees, except a
-non-owner just gets a waiting message there instead of a form. The owner assigns everyone else into
-a workspace by inviting their email (Settings → Members) with whatever role fits — admin, member, or
-viewer.
+Punchlist is multi-tenant: anyone who registers **without** an invite link founds their own
+**organization** and becomes its owner — a fully separate tenant from every other organization on the
+box, with no cross-visibility between them. `ADMIN_EMAIL`/`ADMIN_PASSWORD_HASH` just provisions one
+such owner account from env instead of through the Register screen, so you don't have to sign up by
+hand on first boot.
 
-Registration is still open by default — anyone with the site URL can create a Punchlist account —
-but signing up no longer creates a workspace for them; they land on that waiting screen until the
-owner adds them to one. If you'd rather close registration entirely, that's a code change to
-`server/src/routes/auth.js` (e.g. gate `/register` behind an invite code) — ask for it if you want it
-added.
+Within one organization there's no predefined workspace, and only that org's owner can create one —
+from the app itself, the same "create a workspace" screen anyone with zero workspaces sees, except a
+non-owner just gets a waiting message there instead of a form. The owner assigns everyone else into a
+workspace by inviting their email (Settings → Members, or centrally from the Admin screen) with
+whatever role fits — **Admin** (manages members/settings), **Manager** (runs projects and task
+assignment, no settings access), **Developer** (day-to-day contributor), or **Viewer** (read-only).
+The Admin screen's Users tab is also where the owner deletes an account, sets someone's free-text team
+label (e.g. "Backend", "QA", "Cloud"), and opens "Manage access" to add/remove/re-role a person across
+every workspace in the org from one place, instead of hopping into each workspace's own Settings.
+
+Registration is still open by default — anyone with the site URL can create a Punchlist account and
+found their own organization. Joining an *existing* organization only happens via an invite link
+(there's no "browse organizations and ask to join" flow). If you'd rather close public registration
+entirely, that's a code change to `server/src/routes/auth.js` (e.g. gate `/register` behind an invite
+code) — ask for it if you want it added.
 
 ## 6. Start everything
 

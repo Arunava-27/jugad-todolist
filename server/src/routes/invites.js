@@ -47,6 +47,11 @@ router.post('/:token/accept', requireAuth, (req, res) => {
     return res.status(403).json({ error: `This invite was sent to ${invite.email}, not ${req.user.email}` });
   }
 
+  const workspaceOrg = db.prepare('SELECT organization_id FROM workspaces WHERE id = ?').get(invite.workspace_id)?.organization_id;
+  if (workspaceOrg !== req.user.organization_id) {
+    return res.status(403).json({ error: 'Your account belongs to a different organization than this invite' });
+  }
+
   const existing = db.prepare('SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(invite.workspace_id, req.user.id);
   db.transaction(() => {
     if (!existing) {

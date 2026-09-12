@@ -1,18 +1,22 @@
 # Punchlist
 
 A self-hosted, Todoist-style task manager — no per-vendor storage/usage caps, because it runs on
-your own server. Multi-user with real accounts, an admin account seeded from env vars, and
-shared/collaborative workspaces. Includes a one-time backup/import of the Notion "⚙️ Dev Tasks" +
-"📁 Projects" databases.
+your own server. Multi-tenant: registering without an invite founds your own organization (you
+become its owner); real accounts, shared/collaborative workspaces per organization, and one admin
+account seeded from env vars as its first owner. Includes a one-time backup/import of the Notion
+"⚙️ Dev Tasks" + "📁 Projects" databases.
 
 - **Backend:** Node.js + Express + SQLite (`better-sqlite3`) — `server/`
 - **Frontend:** React + Vite SPA — `web/`
 - **Data:** single SQLite file at `data/app.db`, uploaded task images at `data/uploads/`
-- **Accounts:** open registration (email + password) plus one admin account seeded from env vars
-  on first boot. Admin can manage all users and open any workspace; see `web/src/pages/Admin.jsx`
-- **Workspaces:** shared/collaborative — projects, tasks, labels, people, and the status/priority
-  workflow are all scoped per workspace. Every user gets a workspace on registration and can create
-  more or be added to teammates' workspaces (Settings → Members, by email)
+- **Accounts:** open registration (email + password) — no invite founds a new organization, an
+  invite joins an existing one. Each org's owner manages its users/workspaces from the Admin screen
+  (roles, team labels, per-workspace access, delete); see `web/src/pages/Admin.jsx`
+- **Roles:** Owner, Admin (members/settings), Manager (runs projects & task assignment), Developer
+  (contributor), Viewer (read-only) — see `server/src/lib/permissions.js`
+- **Workspaces:** shared/collaborative within one organization — projects, tasks, labels, people,
+  and the status/priority workflow are all scoped per workspace. Only the org's owner creates a
+  workspace; everyone else is added by invite (Settings → Members, or centrally from Admin)
 - **Customization:** Settings screen — theme/accent color, editable statuses & priorities
   (drag to reorder, recolor, mark done/default), labels, people, and projects, all with colors
 - **Hosting:** Docker Compose (`app` + Caddy for automatic HTTPS) — see [DEPLOY.md](DEPLOY.md)

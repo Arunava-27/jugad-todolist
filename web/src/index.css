@@ -75,6 +75,20 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; }
+
+/* Thin, theme-matched scrollbars instead of the default OS chrome — near
+   invisible at rest, a quiet line-colored thumb on hover/scroll rather
+   than a bulky gray bar fighting the rest of the UI. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+*:hover { scrollbar-color: var(--line) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: transparent; border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+*:hover::-webkit-scrollbar-thumb { background: var(--line); background-clip: padding-box; border: 2px solid transparent; }
+*::-webkit-scrollbar-corner { background: transparent; }
 body {
   margin: 0;
   font-family: var(--font-ui);
@@ -444,6 +458,9 @@ button.ghost { background: none; border: 1px solid var(--line); padding: 8px 14p
 .admin-table td { padding: 8px; border-bottom: 1px solid var(--line); }
 .admin-table-actions { display: flex; gap: 6px; }
 .admin-table-actions button { font-size: 12px; padding: 5px 10px; }
+.admin-scope-cell { background: var(--panel-sunk); padding: 12px 16px !important; }
+.admin-scope-panel { display: flex; flex-direction: column; gap: 6px; }
+.admin-scope-panel .settings-row { background: var(--paper); }
 
 /* ---------- Landing (logged-out marketing page) ---------- */
 .landing { background: var(--paper); color: var(--ink); min-height: 100vh; }
