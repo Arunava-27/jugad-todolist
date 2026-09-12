@@ -18,6 +18,7 @@ RUN npm --prefix server install --omit=dev
 
 COPY server server
 COPY --from=webbuild /repo/web/dist web/dist
+COPY scripts /scripts
 
 ENV NODE_ENV=production
 ENV DATA_DIR=/data
