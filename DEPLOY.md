@@ -68,7 +68,7 @@ Running the import boots the same admin/workspace seeding the server does, then 
 workspace — do this before first `docker compose up`:
 
 ```bash
-docker compose run --rm app node ../scripts/import-notion.js
+docker compose run --rm app node scripts/import-notion.js
 ```
 
 This writes into the same `/data` volume the app will use, so your ~95 tasks and 4 projects are there
