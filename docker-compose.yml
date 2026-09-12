@@ -1,5 +1,6 @@
 services:
   app:
+    image: ghcr.io/arunava-27/jugad-todolist:latest
     build: .
     restart: unless-stopped
     environment:
