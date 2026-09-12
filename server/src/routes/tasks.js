@@ -2,6 +2,7 @@ import { Router } from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
 import db, { DATA_DIR } from '../db/index.js';
+import { roleFor } from '../lib/permissions.js';
 
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 
@@ -15,14 +16,6 @@ function getOrCreateLabel(workspaceId, name) {
   return db.prepare('SELECT * FROM labels WHERE id = ?').get(info.lastInsertRowid);
 }
 
-function getOrCreateAssignee(workspaceId, name) {
-  const trimmed = name.trim();
-  const existing = db.prepare('SELECT * FROM assignees WHERE workspace_id = ? AND name = ?').get(workspaceId, trimmed);
-  if (existing) return existing;
-  const info = db.prepare('INSERT INTO assignees (workspace_id, name) VALUES (?, ?)').run(workspaceId, trimmed);
-  return db.prepare('SELECT * FROM assignees WHERE id = ?').get(info.lastInsertRowid);
-}
-
 function setTaskLabels(workspaceId, taskId, names) {
   db.prepare('DELETE FROM task_labels WHERE task_id = ?').run(taskId);
   if (!Array.isArray(names)) return;
@@ -34,14 +27,19 @@ function setTaskLabels(workspaceId, taskId, names) {
   }
 }
 
-function setTaskAssignees(workspaceId, taskId, names) {
-  db.prepare('DELETE FROM task_assignees WHERE task_id = ?').run(taskId);
-  if (!Array.isArray(names)) return;
-  const insert = db.prepare('INSERT OR IGNORE INTO task_assignees (task_id, assignee_id) VALUES (?, ?)');
-  for (const name of names) {
-    if (!name || !String(name).trim()) continue;
-    const assignee = getOrCreateAssignee(workspaceId, String(name));
-    insert.run(taskId, assignee.id);
+// Assigns a task to real accounts (must belong to this workspace — anyone
+// else in the id list is silently dropped rather than failing the whole
+// save, since a stale/removed member's id is a normal thing to encounter).
+function setTaskMembers(workspaceId, taskId, userIds) {
+  db.prepare('DELETE FROM task_members WHERE task_id = ?').run(taskId);
+  if (!Array.isArray(userIds)) return;
+  const insert = db.prepare('INSERT OR IGNORE INTO task_members (task_id, user_id) VALUES (?, ?)');
+  for (const raw of userIds) {
+    const userId = Number(raw);
+    if (!userId) continue;
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    if (!user || !roleFor(user, workspaceId)) continue;
+    insert.run(taskId, userId);
   }
 }
 
@@ -49,8 +47,8 @@ function hydrateTask(task) {
   const labels = db.prepare(
     `SELECT l.name, l.color FROM labels l JOIN task_labels tl ON tl.label_id = l.id WHERE tl.task_id = ? ORDER BY l.name`
   ).all(task.id);
-  const assignees = db.prepare(
-    `SELECT a.name, a.color FROM assignees a JOIN task_assignees ta ON ta.assignee_id = a.id WHERE ta.task_id = ? ORDER BY a.name`
+  const members = db.prepare(
+    `SELECT u.id, u.name, u.email FROM users u JOIN task_members tm ON tm.user_id = u.id WHERE tm.task_id = ? ORDER BY u.name COLLATE NOCASE`
   ).all(task.id);
   const attachments = db.prepare(
     `SELECT id, original_name, mime_type, size, created_at FROM attachments WHERE task_id = ? ORDER BY created_at`
@@ -62,7 +60,7 @@ function hydrateTask(task) {
     ...task,
     is_completed: !!task.is_completed,
     labels,
-    assignees,
+    members,
     attachments,
     subtask_count: subtaskStats.total,
     subtask_completed_count: subtaskStats.completed,
@@ -88,7 +86,7 @@ function sectionMatchesProject(sectionId, projectId) {
 }
 
 router.get('/', (req, res) => {
-  const { project_id, status, priority, label, assignee, completed, due_before, due_after, q, parent_task_id, include_subtasks } = req.query;
+  const { project_id, status, priority, label, member_id, completed, due_before, due_after, q, parent_task_id, include_subtasks } = req.query;
   let sql = 'SELECT DISTINCT t.* FROM tasks t';
   const joins = [];
   const where = ['t.workspace_id = ?'];
@@ -99,10 +97,10 @@ router.get('/', (req, res) => {
     where.push('l.name = ?');
     params.push(label);
   }
-  if (assignee) {
-    joins.push('JOIN task_assignees ta ON ta.task_id = t.id JOIN assignees a ON a.id = ta.assignee_id');
-    where.push('a.name = ?');
-    params.push(assignee);
+  if (member_id) {
+    joins.push('JOIN task_members tm ON tm.task_id = t.id');
+    where.push('tm.user_id = ?');
+    params.push(Number(member_id));
   }
   if (project_id === 'none') {
     where.push('t.project_id IS NULL');
@@ -205,7 +203,7 @@ router.post('/', (req, res) => {
   );
   const id = info.lastInsertRowid;
   if (b.labels) setTaskLabels(req.workspaceId, id, b.labels);
-  if (b.assignees) setTaskAssignees(req.workspaceId, id, b.assignees);
+  if (b.member_ids) setTaskMembers(req.workspaceId, id, b.member_ids);
   res.status(201).json(hydrateTask(db.prepare('SELECT * FROM tasks WHERE id = ?').get(id)));
 });
 
@@ -285,7 +283,7 @@ router.patch('/:id', (req, res) => {
     db.prepare(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`).run(...values);
   }
   if ('labels' in b) setTaskLabels(req.workspaceId, id, b.labels);
-  if ('assignees' in b) setTaskAssignees(req.workspaceId, id, b.assignees);
+  if ('member_ids' in b) setTaskMembers(req.workspaceId, id, b.member_ids);
 
   res.json(hydrateTask(db.prepare('SELECT * FROM tasks WHERE id = ?').get(id)));
 });

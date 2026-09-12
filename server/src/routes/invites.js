@@ -22,14 +22,18 @@ router.get('/:token', (req, res) => {
   if (!invite) return res.status(404).json({ error: 'Invite not found' });
   if (reason) return res.status(410).json({ error: `This invite has been ${reason}`, status: reason });
 
-  const workspace = db.prepare('SELECT name FROM workspaces WHERE id = ?').get(invite.workspace_id);
   const inviter = db.prepare('SELECT name FROM users WHERE id = ?').get(invite.invited_by);
   const accountExists = !!db.prepare('SELECT 1 FROM users WHERE email = ?').get(invite.email);
+
+  const isStakeholder = !!invite.project_id;
+  const workspace = db.prepare('SELECT name FROM workspaces WHERE id = ?').get(invite.workspace_id);
+  const project = isStakeholder ? db.prepare('SELECT name FROM projects WHERE id = ?').get(invite.project_id) : null;
 
   res.json({
     email: invite.email,
     role: invite.role,
-    workspaceName: workspace?.name || 'a workspace',
+    isStakeholder,
+    workspaceName: isStakeholder ? (project?.name || 'a project') : (workspace?.name || 'a workspace'),
     inviterName: inviter?.name || 'Someone',
     accountExists,
   });
@@ -52,14 +56,23 @@ router.post('/:token/accept', requireAuth, (req, res) => {
     return res.status(403).json({ error: 'Your account belongs to a different organization than this invite' });
   }
 
-  const existing = db.prepare('SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(invite.workspace_id, req.user.id);
+  const isStakeholder = !!invite.project_id;
   db.transaction(() => {
-    if (!existing) {
-      db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(invite.workspace_id, req.user.id, invite.role);
+    if (isStakeholder) {
+      db.prepare('INSERT OR IGNORE INTO project_stakeholders (project_id, user_id) VALUES (?, ?)').run(invite.project_id, req.user.id);
+    } else {
+      const existing = db.prepare('SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?').get(invite.workspace_id, req.user.id);
+      if (!existing) {
+        db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(invite.workspace_id, req.user.id, invite.role);
+      }
     }
     db.prepare("UPDATE invites SET status = 'accepted', accepted_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?").run(invite.id);
   })();
 
+  if (isStakeholder) {
+    const project = db.prepare('SELECT id, name FROM projects WHERE id = ?').get(invite.project_id);
+    return res.json({ project, isStakeholder: true });
+  }
   const workspace = db.prepare('SELECT id, name FROM workspaces WHERE id = ?').get(invite.workspace_id);
   res.json({ workspace });
 });

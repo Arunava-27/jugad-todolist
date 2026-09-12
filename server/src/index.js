@@ -10,9 +10,9 @@ import workspaceRoutes from './routes/workspaces.js';
 import inviteRoutes from './routes/invites.js';
 import adminRoutes from './routes/admin.js';
 import projectRoutes from './routes/projects.js';
+import projectSummaryRoutes from './routes/projectSummary.js';
 import taskRoutes from './routes/tasks.js';
 import labelRoutes from './routes/labels.js';
-import assigneeRoutes from './routes/assignees.js';
 import statusRoutes from './routes/statuses.js';
 import priorityRoutes from './routes/priorities.js';
 import sectionRoutes from './routes/sections.js';
@@ -46,10 +46,13 @@ app.use('/api/auth', authRoutes);
 app.use('/api/invites', inviteRoutes);
 app.use('/api/workspaces', requireAuth, workspaceRoutes);
 app.use('/api/admin', requireAuth, requireAdmin, adminRoutes);
+// Deliberately NOT behind requireWorkspace — a stakeholder reaches this with
+// no X-Workspace-Id header at all (often no workspace membership); it does
+// its own per-project authorization (see projectSummary.js).
+app.use('/api/project-summary', requireAuth, projectSummaryRoutes);
 app.use('/api/projects', requireAuth, requireWorkspace, projectRoutes);
 app.use('/api/tasks', requireAuth, requireWorkspace, taskRoutes);
 app.use('/api/labels', requireAuth, requireWorkspace, labelRoutes);
-app.use('/api/assignees', requireAuth, requireWorkspace, assigneeRoutes);
 app.use('/api/statuses', requireAuth, requireWorkspace, statusRoutes);
 app.use('/api/priorities', requireAuth, requireWorkspace, priorityRoutes);
 app.use('/api/sections', requireAuth, requireWorkspace, sectionRoutes);

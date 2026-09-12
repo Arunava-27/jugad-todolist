@@ -90,10 +90,20 @@ export const api = {
   adminUserMemberships: (id) => request(`/admin/users/${id}/memberships`),
   adminListWorkspaces: () => request('/admin/workspaces'),
 
+  adminListDomains: () => request('/admin/domains'),
+  adminCreateDomain: (data) => request('/admin/domains', { method: 'POST', body: JSON.stringify(data) }),
+  adminUpdateDomain: (id, data) => request(`/admin/domains/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  adminDeleteDomain: (id, reassignTo) => request(`/admin/domains/${id}${reassignTo ? `?reassign_to=${encodeURIComponent(reassignTo)}` : ''}`, { method: 'DELETE' }),
+
   listProjects: () => request('/projects'),
   createProject: (data) => request('/projects', { method: 'POST', body: JSON.stringify(data) }),
   updateProject: (id, data) => request(`/projects/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteProject: (id) => request(`/projects/${id}`, { method: 'DELETE' }),
+  getProjectSummary: (id) => request(`/project-summary/${id}`),
+
+  listStakeholders: (projectId) => request(`/projects/${projectId}/stakeholders`),
+  addStakeholder: (projectId, email) => request(`/projects/${projectId}/stakeholders`, { method: 'POST', body: JSON.stringify({ email }) }),
+  removeStakeholder: (projectId, userId) => request(`/projects/${projectId}/stakeholders/${userId}`, { method: 'DELETE' }),
 
   listTasks: (params = {}) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ''));
@@ -111,11 +121,6 @@ export const api = {
   createLabel: (data) => request('/labels', { method: 'POST', body: JSON.stringify(data) }),
   updateLabel: (id, data) => request(`/labels/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteLabel: (id) => request(`/labels/${id}`, { method: 'DELETE' }),
-
-  listAssignees: () => request('/assignees'),
-  createAssignee: (data) => request('/assignees', { method: 'POST', body: JSON.stringify(data) }),
-  updateAssignee: (id, data) => request(`/assignees/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  deleteAssignee: (id) => request(`/assignees/${id}`, { method: 'DELETE' }),
 
   listStatuses: () => request('/statuses'),
   createStatus: (data) => request('/statuses', { method: 'POST', body: JSON.stringify(data) }),

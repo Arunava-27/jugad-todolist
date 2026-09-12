@@ -5,6 +5,7 @@ import { Logo } from '../components/Icon.jsx';
 // invite — actually joining happens via App.jsx's acceptPendingInvite,
 // this just decides which prompt/action to show.
 export default function AcceptInvite({ info, error, user, accepting, onSignIn, onRegister, onAcceptNow, onLogout, onDismiss }) {
+  const roleLabel = info?.isStakeholder ? 'stakeholder' : info?.role;
   return (
     <div className="login-screen">
       <div className="login-card">
@@ -23,7 +24,7 @@ export default function AcceptInvite({ info, error, user, accepting, onSignIn, o
           <>
             <p className="login-sub">
               <strong>{info.inviterName}</strong> invited you to join <strong>{info.workspaceName}</strong> as
-              a {info.role}.
+              a {roleLabel}.
             </p>
             {error && <div className="login-error">{error}</div>}
             <button onClick={onAcceptNow} disabled={accepting}>{accepting ? 'Joining…' : `Join ${info.workspaceName}`}</button>
@@ -40,7 +41,7 @@ export default function AcceptInvite({ info, error, user, accepting, onSignIn, o
           <>
             <p className="login-sub">
               <strong>{info.inviterName}</strong> invited <strong>{info.email}</strong> to join{' '}
-              <strong>{info.workspaceName}</strong> on Punchlist as a {info.role}.
+              <strong>{info.workspaceName}</strong> on Punchlist as a {roleLabel}.
             </p>
             {info.accountExists ? (
               <button onClick={onSignIn}>Sign in to accept</button>

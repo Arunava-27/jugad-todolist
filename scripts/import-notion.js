@@ -36,11 +36,20 @@ function getOrCreateLabel(name) {
   return db.prepare('SELECT * FROM labels WHERE id = ?').get(info.lastInsertRowid);
 }
 
-function getOrCreateAssignee(name) {
-  const existing = db.prepare('SELECT * FROM assignees WHERE workspace_id = ? AND name = ?').get(workspaceId, name);
-  if (existing) return existing;
-  const info = db.prepare('INSERT INTO assignees (workspace_id, name) VALUES (?, ?)').run(workspaceId, name);
-  return db.prepare('SELECT * FROM assignees WHERE id = ?').get(info.lastInsertRowid);
+// Notion's assignees are just names, not accounts — tasks are assigned to
+// real accounts now (see task_members in schema.sql), so a name can only be
+// imported if it matches an existing org member's display name exactly
+// (case-insensitive). Anything that doesn't match is skipped and reported
+// at the end rather than silently dropped, since there's no reliable way to
+// invent an account from a bare name.
+const unmatchedAssignees = new Set();
+function resolveAssigneeUserId(name) {
+  const match = db.prepare(
+    `SELECT u.id FROM users u JOIN workspace_members wm ON wm.user_id = u.id
+     WHERE wm.workspace_id = ? AND LOWER(u.name) = LOWER(?)`
+  ).get(workspaceId, name);
+  if (!match) { unmatchedAssignees.add(name); return null; }
+  return match.id;
 }
 
 const upsertProject = db.transaction((p) => {
@@ -96,10 +105,10 @@ const upsertTask = db.transaction((t, projectIdByUrl) => {
     db.prepare('INSERT OR IGNORE INTO task_labels (task_id, label_id) VALUES (?, ?)').run(taskId, label.id);
   }
 
-  db.prepare('DELETE FROM task_assignees WHERE task_id = ?').run(taskId);
+  db.prepare('DELETE FROM task_members WHERE task_id = ?').run(taskId);
   for (const name of t.assignees || []) {
-    const assignee = getOrCreateAssignee(name);
-    db.prepare('INSERT OR IGNORE INTO task_assignees (task_id, assignee_id) VALUES (?, ?)').run(taskId, assignee.id);
+    const userId = resolveAssigneeUserId(name);
+    if (userId) db.prepare('INSERT OR IGNORE INTO task_members (task_id, user_id) VALUES (?, ?)').run(taskId, userId);
   }
 });
 
@@ -119,10 +128,16 @@ const totals = {
   projects: db.prepare('SELECT COUNT(*) c FROM projects WHERE workspace_id = ?').get(workspaceId).c,
   tasks: db.prepare('SELECT COUNT(*) c FROM tasks WHERE workspace_id = ?').get(workspaceId).c,
   labels: db.prepare('SELECT COUNT(*) c FROM labels WHERE workspace_id = ?').get(workspaceId).c,
-  assignees: db.prepare('SELECT COUNT(*) c FROM assignees WHERE workspace_id = ?').get(workspaceId).c,
   done: db.prepare("SELECT COUNT(*) c FROM tasks WHERE workspace_id = ? AND status = 'Done'").get(workspaceId).c,
 };
 
 console.log(`Imported ${data.projects.length} projects and ${taskCount} tasks from ${EXPORT_PATH}`);
 console.log(`Into workspace: "${workspace.name}" (id ${workspaceId})`);
 console.log('DB totals:', totals);
+if (unmatchedAssignees.size > 0) {
+  console.log(
+    `Note: these Notion assignee names didn't match a real account's display name in this workspace, ` +
+    `so those tasks were imported unassigned — assign them by hand from the task modal: ` +
+    [...unmatchedAssignees].join(', ')
+  );
+}

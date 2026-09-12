@@ -11,6 +11,19 @@ CREATE TABLE IF NOT EXISTS organizations (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
+-- A structured domain/discipline within an organization (Frontend, Backend,
+-- QA, DevOps, Design, PM, ...) — the owner defines the list; every user
+-- optionally carries one. Purely descriptive/filterable, no permissions of
+-- its own (permissions are entirely `users.role`/`workspace_members.role`).
+CREATE TABLE IF NOT EXISTS domains (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  organization_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  color TEXT DEFAULT '#94a3b8',
+  sort_order REAL NOT NULL DEFAULT 0,
+  UNIQUE (organization_id, name)
+);
+
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   organization_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
@@ -18,7 +31,8 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'developer', -- rank within their org: 'owner' | 'admin' | 'manager' | 'developer' | 'viewer'
-  team TEXT, -- free-text label ("Backend", "QA", "Cloud/DevOps", ...) — descriptive only, carries no permissions
+  domain_id INTEGER REFERENCES domains(id) ON DELETE SET NULL, -- their discipline (see `domains`); replaces the old free-text `team` column below
+  team TEXT, -- superseded by domain_id (2026-09) — left in place, unused, rather than a destructive column drop
   is_active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
@@ -45,8 +59,9 @@ CREATE TABLE IF NOT EXISTS workspace_members (
 CREATE TABLE IF NOT EXISTS invites (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE, -- set only for a stakeholder invite (see below); NULL for a normal workspace-join invite
   email TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'developer', -- role they'll be granted on acceptance; never 'owner'
+  role TEXT NOT NULL DEFAULT 'developer', -- workspace role granted on acceptance; never 'owner'. Meaningless for a stakeholder invite (project_id set) — accepting one of those grants project_stakeholders access instead of workspace_members
   token TEXT NOT NULL UNIQUE,
   invited_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'accepted' | 'revoked'
@@ -60,7 +75,7 @@ CREATE TABLE IF NOT EXISTS projects (
   workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
   notion_url TEXT,
   name TEXT NOT NULL,
-  status TEXT,
+  status TEXT, -- the project's lifecycle stage: 'Planning' | 'Active' | 'On Hold' | 'Testing' | 'Launched' (see web/src/lib/projectStages.js) — independent of `is_archived`, which is purely a sidebar-visibility toggle
   platform TEXT,
   description TEXT,
   version TEXT,
@@ -72,6 +87,18 @@ CREATE TABLE IF NOT EXISTS projects (
   is_favorite INTEGER NOT NULL DEFAULT 0,
   sort_order REAL NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+-- Grants a user read-only, high-level visibility into ONE project — status,
+-- progress, dates, description — without full task detail, and without
+-- needing a `workspace_members` row at all. This is how an external or
+-- non-technical stakeholder reaches a project: scoped to specific projects
+-- they care about, not the whole workspace. See server/src/routes/projectSummary.js.
+CREATE TABLE IF NOT EXISTS project_stakeholders (
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  added_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  PRIMARY KEY (project_id, user_id)
 );
 
 -- Named groupings of tasks within a project's List view (e.g. "Backlog",
@@ -124,21 +151,14 @@ CREATE TABLE IF NOT EXISTS task_labels (
   PRIMARY KEY (task_id, label_id)
 );
 
--- Free-text assignee tags (kept separate from `users` — a task can be tagged
--- to someone who isn't a registered account yet, e.g. an external collaborator).
-CREATE TABLE IF NOT EXISTS assignees (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  color TEXT DEFAULT '#6366f1',
-  sort_order REAL NOT NULL DEFAULT 0,
-  UNIQUE (workspace_id, name)
-);
-
-CREATE TABLE IF NOT EXISTS task_assignees (
+-- Task assignment to a real account (a member of the task's workspace) —
+-- replaces the old free-text `assignees`/`task_assignees` tables (2026-09;
+-- those are dropped by a migration in db/index.js if empty), so assignment
+-- is always a real, permissioned person rather than a decorative name tag.
+CREATE TABLE IF NOT EXISTS task_members (
   task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-  assignee_id INTEGER NOT NULL REFERENCES assignees(id) ON DELETE CASCADE,
-  PRIMARY KEY (task_id, assignee_id)
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  PRIMARY KEY (task_id, user_id)
 );
 
 -- Customizable workflow: the exact set of statuses/priorities is user-editable
@@ -177,6 +197,12 @@ CREATE INDEX IF NOT EXISTS idx_workspace_members_user ON workspace_members(user_
 CREATE INDEX IF NOT EXISTS idx_invites_workspace ON invites(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_invites_email ON invites(email);
 CREATE INDEX IF NOT EXISTS idx_sections_project ON sections(project_id);
+CREATE INDEX IF NOT EXISTS idx_domains_organization ON domains(organization_id);
+-- NOTE: idx_users_domain is created in db/index.js instead — users.domain_id
+-- is added by a migration on a pre-existing database, same reasoning as the
+-- workspace_id-dependent indexes described below.
+CREATE INDEX IF NOT EXISTS idx_task_members_user ON task_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_project_stakeholders_user ON project_stakeholders(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);

@@ -2,13 +2,17 @@ import { useState } from 'react';
 import { api } from '../lib/api.js';
 import SettingsList from '../components/SettingsList.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
+import ProjectStakeholders from '../components/ProjectStakeholders.jsx';
+import Icon from '../components/Icon.jsx';
 import { ACCENT_PRESETS, getTheme, getAccent, setTheme, setAccent } from '../lib/theme.js';
+import { PROJECT_STAGES } from '../lib/projectStages.js';
 import { confirmDialog } from '../lib/dialogs.js';
 
-const TABS = ['Appearance', 'Workflow', 'Labels', 'People', 'Members', 'Projects'];
+const TABS = ['Appearance', 'Workflow', 'Labels', 'Members', 'Projects', 'Stakeholders'];
 
-export default function Settings({ statuses, priorities, labels, assignees, projects, workspaceId, currentUserId, onChange }) {
+export default function Settings({ statuses, priorities, labels, projects, workspaceId, currentUserId, onChange }) {
   const [tab, setTab] = useState('Appearance');
+  const [expandedProjectId, setExpandedProjectId] = useState(null);
   const [theme, setThemeState] = useState(getTheme());
   const [accent, setAccentState] = useState(getAccent());
 
@@ -125,22 +129,6 @@ export default function Settings({ statuses, priorities, labels, assignees, proj
             </>
           )}
 
-          {tab === 'People' && (
-            <>
-              <h3>People</h3>
-              <p className="settings-hint">Assignees shown as colored initials on tasks. Drag the handle to reorder.</p>
-              <SettingsList
-                items={assignees}
-                reorderable
-                addPlaceholder="New person's name"
-                onCreate={(data) => api.createAssignee(data).then(onChange)}
-                onUpdate={(id, patch) => api.updateAssignee(id, patch).then(onChange)}
-                onDelete={(id) => api.deleteAssignee(id).then(onChange)}
-                onReorder={(ordered) => Promise.all(ordered.map((item, idx) => api.updateAssignee(item.id, { sort_order: idx }))).then(onChange)}
-              />
-            </>
-          )}
-
           {tab === 'Members' && (
             <>
               <h3>Members</h3>
@@ -167,11 +155,49 @@ export default function Settings({ statuses, priorities, labels, assignees, proj
                 }}
                 onReorder={(ordered) => Promise.all(ordered.map((item, idx) => api.updateProject(item.id, { sort_order: idx }))).then(onChange)}
                 renderRowExtra={(item, patch) => (
-                  <label title="Hide from the sidebar's main project list">
-                    <input type="checkbox" checked={!!item.is_archived} onChange={(e) => patch({ is_archived: e.target.checked })} /> Archived
-                  </label>
+                  <>
+                    <select value={item.status || ''} onChange={(e) => patch({ status: e.target.value })} title="Lifecycle stage">
+                      <option value="">No stage</option>
+                      {PROJECT_STAGES.map((s) => <option key={s.value} value={s.value}>{s.value}</option>)}
+                    </select>
+                    <label title="Hide from the sidebar's main project list">
+                      <input type="checkbox" checked={!!item.is_archived} onChange={(e) => patch({ is_archived: e.target.checked })} /> Archived
+                    </label>
+                  </>
                 )}
               />
+            </>
+          )}
+
+          {tab === 'Stakeholders' && (
+            <>
+              <h3>Stakeholders</h3>
+              <p className="settings-hint">
+                Grant someone read-only, high-level visibility into ONE project — stage, dates, progress,
+                who's on it — without adding them to this workspace at all. Open a project to manage who
+                has that access.
+              </p>
+              <div className="settings-list">
+                {projects.map((p) => (
+                  <div key={p.id}>
+                    <button
+                      className="settings-row"
+                      style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }}
+                      onClick={() => setExpandedProjectId((cur) => (cur === p.id ? null : p.id))}
+                    >
+                      <span className="dot" style={{ background: p.color }} />
+                      <span style={{ flex: 1 }}>{p.name}</span>
+                      <Icon name="chevron" size={14} style={{ transform: expandedProjectId === p.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+                    </button>
+                    {expandedProjectId === p.id && (
+                      <div className="admin-scope-cell">
+                        <ProjectStakeholders projectId={p.id} />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {projects.length === 0 && <div className="settings-hint">No projects in this workspace yet.</div>}
+              </div>
             </>
           )}
         </div>

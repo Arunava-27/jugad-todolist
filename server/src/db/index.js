@@ -31,8 +31,15 @@ db.exec(schema);
 function hasColumn(table, column) {
   return db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
 }
+function hasTable(table) {
+  return !!db.prepare('SELECT 1 FROM sqlite_master WHERE type = ? AND name = ?').get('table', table);
+}
 
-if (!hasColumn('assignees', 'color')) {
+// `assignees`/`task_assignees` (free-text task tagging) were replaced by
+// `task_members` (real-account assignment, see schema.sql) — no longer part
+// of a fresh install's schema at all, so every migration that touches them
+// below is guarded on the table still existing on this particular database.
+if (hasTable('assignees') && !hasColumn('assignees', 'color')) {
   db.exec("ALTER TABLE assignees ADD COLUMN color TEXT DEFAULT '#6366f1'");
 }
 if (!hasColumn('projects', 'is_favorite')) {
@@ -87,17 +94,21 @@ rebuildWithWorkspaceScope(
   'id, name, color'
 );
 
-rebuildWithWorkspaceScope(
-  'assignees',
-  `CREATE TABLE assignees (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    color TEXT DEFAULT '#6366f1',
-    UNIQUE (workspace_id, name)
-  )`,
-  'id, name, color'
-);
+// 'assignees' no longer exists on a fresh install (see the task_members note
+// above) — only rebuild it if this particular database still has it.
+if (hasTable('assignees')) {
+  rebuildWithWorkspaceScope(
+    'assignees',
+    `CREATE TABLE assignees (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      color TEXT DEFAULT '#6366f1',
+      UNIQUE (workspace_id, name)
+    )`,
+    'id, name, color'
+  );
+}
 
 rebuildWithWorkspaceScope(
   'statuses',
@@ -151,7 +162,7 @@ for (const [table, refTable] of [['task_labels', 'labels'], ['task_assignees', '
 }
 
 for (const table of ['labels', 'assignees']) {
-  if (!hasColumn(table, 'sort_order')) {
+  if (hasTable(table) && !hasColumn(table, 'sort_order')) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN sort_order REAL NOT NULL DEFAULT 0`);
     // Give existing rows a stable initial order (previously implicit alphabetical)
     // instead of leaving them all at 0, so they don't visually shuffle on first load.
@@ -161,12 +172,38 @@ for (const table of ['labels', 'assignees']) {
   }
 }
 
+// `assignees`/`task_assignees` are retired in favor of `task_members` (real-
+// account assignment). Only ever drop them when they're actually empty —
+// never silently discard real historical data just because the feature was
+// replaced; a database that still has rows in either just keeps both tables
+// around, unused, same "leave it rather than risk data loss" approach as the
+// unused `users.team` column above.
+if (hasTable('assignees') || hasTable('task_assignees')) {
+  const assigneeRows = hasTable('assignees') ? db.prepare('SELECT COUNT(*) c FROM assignees').get().c : 0;
+  const taskAssigneeRows = hasTable('task_assignees') ? db.prepare('SELECT COUNT(*) c FROM task_assignees').get().c : 0;
+  if (assigneeRows === 0 && taskAssigneeRows === 0) {
+    db.exec('DROP TABLE IF EXISTS task_assignees');
+    db.exec('DROP TABLE IF EXISTS assignees');
+  } else {
+    console.warn(`Not dropping legacy assignees/task_assignees tables — ${assigneeRows} assignee(s), ${taskAssigneeRows} task_assignee row(s) still present. Safe to ignore; they're just unused now.`);
+  }
+}
+if (hasTable('assignees')) {
+  db.exec('CREATE INDEX IF NOT EXISTS idx_assignees_workspace ON assignees(workspace_id)');
+}
+
 // --- multi-organization support (added after the initial single-tenant release) ---
 if (!hasColumn('users', 'organization_id')) {
   db.exec('ALTER TABLE users ADD COLUMN organization_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE');
 }
 if (!hasColumn('users', 'team')) {
   db.exec('ALTER TABLE users ADD COLUMN team TEXT');
+}
+if (!hasColumn('users', 'domain_id')) {
+  db.exec('ALTER TABLE users ADD COLUMN domain_id INTEGER REFERENCES domains(id) ON DELETE SET NULL');
+}
+if (!hasColumn('invites', 'project_id')) {
+  db.exec('ALTER TABLE invites ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE');
 }
 if (!hasColumn('workspaces', 'organization_id')) {
   db.exec('ALTER TABLE workspaces ADD COLUMN organization_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE');
@@ -204,11 +241,11 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_projects_workspace ON projects(workspace_id);
   CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks(workspace_id);
   CREATE INDEX IF NOT EXISTS idx_labels_workspace ON labels(workspace_id);
-  CREATE INDEX IF NOT EXISTS idx_assignees_workspace ON assignees(workspace_id);
   CREATE INDEX IF NOT EXISTS idx_statuses_workspace ON statuses(workspace_id);
   CREATE INDEX IF NOT EXISTS idx_priorities_workspace ON priorities(workspace_id);
   CREATE INDEX IF NOT EXISTS idx_tasks_section ON tasks(section_id);
   CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_task_id);
+  CREATE INDEX IF NOT EXISTS idx_users_domain ON users(domain_id);
 `);
 db.pragma('foreign_keys = ON');
 

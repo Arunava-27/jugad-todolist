@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api.js';
 import { confirmDialog } from '../lib/dialogs.js';
+import { colorForPerson, initials } from '../lib/format.js';
 import SubtaskList from './SubtaskList.jsx';
 import Icon from './Icon.jsx';
 
-export default function TaskModal({ task, projects, statuses, priorities, onClose, onUpdate, onDelete }) {
+export default function TaskModal({ task, projects, statuses, priorities, members, onClose, onUpdate, onDelete }) {
   const [attachments, setAttachments] = useState(task.attachments || []);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -49,12 +50,19 @@ export default function TaskModal({ task, projects, statuses, priorities, onClos
     project_id: task.project_id || '',
     section_id: task.section_id || '',
     labels: task.labels.map((l) => l.name).join(', '),
-    assignees: task.assignees.map((a) => a.name).join(', '),
+    member_ids: task.members.map((m) => m.id),
   });
   const [saving, setSaving] = useState(false);
 
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function toggleMember(id) {
+    setForm((f) => ({
+      ...f,
+      member_ids: f.member_ids.includes(id) ? f.member_ids.filter((x) => x !== id) : [...f.member_ids, id],
+    }));
   }
 
   useEffect(() => {
@@ -88,7 +96,7 @@ export default function TaskModal({ task, projects, statuses, priorities, onClos
         // is_completed is deliberately omitted: the server derives it from
         // whichever status is marked "done" in Settings > Workflow.
         labels: form.labels.split(',').map((s) => s.trim()).filter(Boolean),
-        assignees: form.assignees.split(',').map((s) => s.trim()).filter(Boolean),
+        member_ids: form.member_ids,
       });
       onClose();
     } finally {
@@ -176,8 +184,22 @@ export default function TaskModal({ task, projects, statuses, priorities, onClos
             <input value={form.labels} onChange={(e) => set('labels', e.target.value)} placeholder="backend, frontend" />
           </label>
           <label className="span-2">
-            Assignees (comma separated)
-            <input value={form.assignees} onChange={(e) => set('assignees', e.target.value)} placeholder="Arunava, Soumi" />
+            Assignees
+            <div className="member-picker">
+              {members.length === 0 && <span className="settings-hint" style={{ margin: 0 }}>No one else in this workspace yet</span>}
+              {members.map((m) => (
+                <button
+                  type="button"
+                  key={m.id}
+                  className={`member-chip ${form.member_ids.includes(m.id) ? 'selected' : ''}`}
+                  onClick={() => toggleMember(m.id)}
+                  title={m.email}
+                >
+                  <span className="avatar" style={{ background: colorForPerson(m.name) }}>{initials(m.name)}</span>
+                  {m.name}
+                </button>
+              ))}
+            </div>
           </label>
         </div>
 

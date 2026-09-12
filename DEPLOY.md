@@ -78,9 +78,21 @@ non-owner just gets a waiting message there instead of a form. The owner assigns
 workspace by inviting their email (Settings → Members, or centrally from the Admin screen) with
 whatever role fits — **Admin** (manages members/settings), **Manager** (runs projects and task
 assignment, no settings access), **Developer** (day-to-day contributor), or **Viewer** (read-only).
-The Admin screen's Users tab is also where the owner deletes an account, sets someone's free-text team
-label (e.g. "Backend", "QA", "Cloud"), and opens "Manage access" to add/remove/re-role a person across
-every workspace in the org from one place, instead of hopping into each workspace's own Settings.
+The Admin screen's Users tab is also where the owner deletes an account (only the owner — never an
+admin — can delete, and it requires typing the account's email to confirm), sets someone's **domain**
+(a structured, owner-editable discipline list — Frontend, Backend, QA, Cloud/DevOps, ... — managed from
+the Admin screen's Domains tab), and opens "Manage access" to add/remove/re-role a person across every
+workspace in the org from one place, instead of hopping into each workspace's own Settings.
+
+Projects carry their own lifecycle **stage** (Planning/Active/On Hold/Testing/Launched — set from
+Settings → Projects, independent of a project's task-board statuses and of the separate Archived flag)
+and tasks are assigned to real accounts, not free-text names (Settings → the old "People" tab is gone;
+assignment happens from the task modal against the workspace's actual members). A project can also
+grant **stakeholders** — read-only, high-level visibility (stage, dates, progress, who's on it, never
+individual task detail) scoped to just that one project, for someone who isn't a workspace member at
+all (a client, an exec). Manage that from Settings → Stakeholders, per project; someone with zero
+workspaces but at least one stakeholder grant lands on their own read-only view instead of the
+"ask the owner to add you" screen.
 
 Registration is still open by default — anyone with the site URL can create a Punchlist account and
 found their own organization. Joining an *existing* organization only happens via an invite link

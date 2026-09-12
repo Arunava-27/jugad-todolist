@@ -462,6 +462,37 @@ button.ghost { background: none; border: 1px solid var(--line); padding: 8px 14p
 .admin-scope-panel { display: flex; flex-direction: column; gap: 6px; }
 .admin-scope-panel .settings-row { background: var(--paper); }
 
+/* ---------- Task member picker (TaskModal) ---------- */
+.member-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+.member-chip {
+  display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--panel-sunk); color: var(--ink-soft); font-size: 12.5px;
+}
+.member-chip .avatar { width: 20px; height: 20px; font-size: 9px; }
+.member-chip.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+
+/* ---------- Stakeholder view (project-scoped, read-only lane) ---------- */
+.stakeholder-shell { min-height: 100vh; display: flex; flex-direction: column; background: var(--paper); color: var(--ink); }
+.stakeholder-header {
+  display: flex; align-items: center; justify-content: space-between; padding: 16px 24px;
+  border-bottom: 1px solid var(--line); background: var(--paper);
+}
+.stakeholder-header-right { display: flex; align-items: center; gap: 14px; }
+.stakeholder-body { flex: 1; display: flex; }
+.stakeholder-list { width: 220px; flex-shrink: 0; padding: 16px 10px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; }
+.stakeholder-detail { flex: 1; padding: 28px 32px; max-width: 640px; }
+.stakeholder-title-row { display: flex; align-items: center; gap: 10px; }
+.stakeholder-title-row h2 { margin: 0; font-size: 22px; }
+.stakeholder-description { color: var(--ink-soft); line-height: 1.5; margin: 0 0 18px; }
+.stakeholder-stats { display: flex; flex-direction: column; gap: 14px; }
+.stakeholder-progress { display: flex; align-items: center; gap: 10px; font-size: 13px; margin-top: 3px; }
+.stakeholder-progress-track { flex: 1; max-width: 220px; height: 8px; border-radius: 4px; background: var(--panel-sunk); overflow: hidden; }
+.stakeholder-progress-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.2s; }
+@media (max-width: 640px) {
+  .stakeholder-body { flex-direction: column; }
+  .stakeholder-list { width: 100%; flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--line); }
+}
+
 /* ---------- Landing (logged-out marketing page) ---------- */
 .landing { background: var(--paper); color: var(--ink); min-height: 100vh; }
 .landing-wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px; }

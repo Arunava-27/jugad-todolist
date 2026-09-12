@@ -5,6 +5,7 @@ import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import AcceptInvite from './pages/AcceptInvite.jsx';
 import CreateWorkspace from './pages/CreateWorkspace.jsx';
+import StakeholderView from './pages/StakeholderView.jsx';
 import Settings from './pages/Settings.jsx';
 import Admin from './pages/Admin.jsx';
 import Sidebar from './components/Sidebar.jsx';
@@ -16,6 +17,7 @@ import QuickAdd from './components/QuickAdd.jsx';
 import DialogHost from './components/DialogHost.jsx';
 import Icon from './components/Icon.jsx';
 import { todayISO } from './lib/format.js';
+import { stageColor } from './lib/projectStages.js';
 
 const ACTIVE_WORKSPACE_KEY = 'jugad-active-workspace';
 
@@ -25,10 +27,11 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [workspaces, setWorkspaces] = useState([]);
   const [activeWorkspaceId, setActiveWorkspaceIdState] = useState(null);
+  const [stakeholderProjects, setStakeholderProjects] = useState([]);
 
   const [projects, setProjects] = useState([]);
   const [labels, setLabels] = useState([]);
-  const [assignees, setAssignees] = useState([]);
+  const [members, setMembers] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [priorities, setPriorities] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -48,7 +51,7 @@ export default function App() {
 
   useEffect(() => {
     api.me()
-      .then(({ user, workspaces }) => applyAuthResult({ user, workspaces }))
+      .then(({ user, workspaces, stakeholderProjects }) => applyAuthResult({ user, workspaces, stakeholderProjects }))
       .catch(() => setUser(null))
       .finally(() => setAuthChecked(true));
   }, []);
@@ -95,9 +98,10 @@ export default function App() {
     }
   }
 
-  function applyAuthResult({ user, workspaces }) {
+  function applyAuthResult({ user, workspaces, stakeholderProjects }) {
     setUser(user);
     setWorkspaces(workspaces);
+    setStakeholderProjects(stakeholderProjects || []);
     let saved = null;
     try { saved = Number(localStorage.getItem(ACTIVE_WORKSPACE_KEY)); } catch { /* ignore */ }
     const valid = workspaces.find((w) => w.id === saved) ? saved : workspaces[0]?.id ?? null;
@@ -115,7 +119,7 @@ export default function App() {
     if (!activeWorkspaceId) return;
     api.listProjects().then(setProjects).catch(() => {});
     api.listLabels().then(setLabels).catch(() => {});
-    api.listAssignees().then(setAssignees).catch(() => {});
+    api.listWorkspaceMembers(activeWorkspaceId).then((d) => setMembers(d.members || [])).catch(() => {});
     api.listStatuses().then(setStatuses).catch(() => {});
     api.listPriorities().then(setPriorities).catch(() => {});
   }, [activeWorkspaceId]);
@@ -203,6 +207,13 @@ export default function App() {
     return <Landing onSignIn={() => setAuthScreen('login')} />;
   }
   if (!activeWorkspaceId) {
+    // Zero workspaces but stakeholder access to at least one project: that's
+    // this person's whole relationship to Punchlist (a client, an exec, a
+    // non-technical stakeholder) — send them to their own read-only lane
+    // instead of the "ask the owner to add you" dead end below.
+    if (stakeholderProjects.length > 0) {
+      return <StakeholderView userName={user.name} projects={stakeholderProjects} onLogout={handleLogout} />;
+    }
     return <CreateWorkspace userName={user.name} isOwner={user.role === 'owner'} onCreate={handleCreateWorkspace} onLogout={handleLogout} />;
   }
 
@@ -309,6 +320,11 @@ export default function App() {
         <header className="main-header">
           <button className="hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Icon name="menu" size={20} /></button>
           <h2>{viewMeta.icon && <Icon name={viewMeta.icon} size={18} style={{ marginRight: 9, verticalAlign: -3 }} />}{viewMeta.label}</h2>
+          {view.type === 'project' && currentProject?.status && (
+            <span className="chip status-chip" style={{ background: stageColor(currentProject.status) + '26', color: stageColor(currentProject.status) }}>
+              {currentProject.status}
+            </span>
+          )}
           {view.type === 'project' && (
             <div className="view-toggle">
               <button
@@ -328,7 +344,6 @@ export default function App() {
             statuses={statuses}
             priorities={priorities}
             labels={labels}
-            assignees={assignees}
             projects={projects}
             workspaceId={activeWorkspaceId}
             currentUserId={user.id}
@@ -385,6 +400,7 @@ export default function App() {
           projects={projects}
           statuses={statuses}
           priorities={priorities}
+          members={members}
           onClose={() => setActiveTask(null)}
           onUpdate={handleUpdateTask}
           onDelete={handleDeleteTask}

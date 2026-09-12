@@ -1,4 +1,4 @@
-import { formatDueDate, isOverdue, initials, colorFor } from '../lib/format.js';
+import { formatDueDate, isOverdue, initials, colorFor, colorForPerson } from '../lib/format.js';
 import Icon from './Icon.jsx';
 
 export default function TaskRow({ task, priorities, onToggleComplete, onOpenTask, draggable, onDragStart }) {
@@ -40,10 +40,10 @@ export default function TaskRow({ task, priorities, onToggleComplete, onOpenTask
         </div>
       </div>
 
-      {task.assignees.length > 0 && (
+      {task.members.length > 0 && (
         <div className="task-assignees">
-          {task.assignees.map((a) => (
-            <span key={a.name} className="avatar" style={{ background: a.color || 'var(--accent)' }} title={a.name}>{initials(a.name)}</span>
+          {task.members.map((m) => (
+            <span key={m.id} className="avatar" style={{ background: colorForPerson(m.name) }} title={m.name}>{initials(m.name)}</span>
           ))}
         </div>
       )}

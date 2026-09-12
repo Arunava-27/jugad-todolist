@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState, useCallback } from 'react';
 import { api } from '../lib/api.js';
 import { alertDialog, promptDialog } from '../lib/dialogs.js';
+import SettingsList from '../components/SettingsList.jsx';
 
 const ROLES = ['owner', 'admin', 'manager', 'developer', 'viewer'];
 const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', manager: 'Manager', developer: 'Developer', viewer: 'Viewer' };
@@ -11,6 +12,7 @@ export default function Admin({ currentUserId, currentUserRole, onOpenWorkspace 
   const [users, setUsers] = useState([]);
   const [workspaces, setWorkspaces] = useState([]);
   const [organization, setOrganization] = useState(null);
+  const [domains, setDomains] = useState([]);
   const [expandedUserId, setExpandedUserId] = useState(null);
   const [memberships, setMemberships] = useState([]);
   const [membershipsLoading, setMembershipsLoading] = useState(false);
@@ -19,6 +21,7 @@ export default function Admin({ currentUserId, currentUserRole, onOpenWorkspace 
     api.adminListUsers().then(setUsers).catch(() => {});
     api.adminListWorkspaces().then(setWorkspaces).catch(() => {});
     api.adminGetOrganization().then(setOrganization).catch(() => {});
+    api.adminListDomains().then(setDomains).catch(() => {});
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
@@ -43,11 +46,9 @@ export default function Admin({ currentUserId, currentUserRole, onOpenWorkspace 
     }
   }
 
-  async function changeTeam(u) {
-    const team = await promptDialog('Team / job title (e.g. Backend, QA, Cloud):', u.team || '', { title: 'Set team' });
-    if (team === null) return;
+  async function changeDomain(u, domainId) {
     try {
-      await api.adminUpdateUser(u.id, { team });
+      await api.adminUpdateUser(u.id, { domain_id: domainId ? Number(domainId) : null });
       refresh();
     } catch (err) {
       alertDialog(err.message);
@@ -119,6 +120,7 @@ export default function Admin({ currentUserId, currentUserRole, onOpenWorkspace 
         <nav className="settings-tabs">
           <button className={tab === 'Users' ? 'active' : ''} onClick={() => setTab('Users')}>Users</button>
           <button className={tab === 'Workspaces' ? 'active' : ''} onClick={() => setTab('Workspaces')}>Workspaces</button>
+          <button className={tab === 'Domains' ? 'active' : ''} onClick={() => setTab('Domains')}>Domains</button>
           <button className={tab === 'Organization' ? 'active' : ''} onClick={() => setTab('Organization')}>Organization</button>
         </nav>
 
@@ -132,7 +134,7 @@ export default function Admin({ currentUserId, currentUserRole, onOpenWorkspace 
               </p>
               <table className="admin-table">
                 <thead>
-                  <tr><th>Name</th><th>Email</th><th>Role</th><th>Team</th><th>Workspaces</th><th>Status</th><th></th></tr>
+                  <tr><th>Name</th><th>Email</th><th>Role</th><th>Domain</th><th>Workspaces</th><th>Status</th><th></th></tr>
                 </thead>
                 <tbody>
                   {users.map((u) => (
@@ -150,7 +152,10 @@ export default function Admin({ currentUserId, currentUserRole, onOpenWorkspace 
                           </select>
                         </td>
                         <td>
-                          <button className="ghost" onClick={() => changeTeam(u)}>{u.team || 'Set team…'}</button>
+                          <select value={u.domain_id || ''} onChange={(e) => changeDomain(u, e.target.value)}>
+                            <option value="">No domain</option>
+                            {domains.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                          </select>
                         </td>
                         <td>
                           <button className="ghost" onClick={() => toggleExpand(u)}>
@@ -223,6 +228,26 @@ export default function Admin({ currentUserId, currentUserRole, onOpenWorkspace 
                   ))}
                 </tbody>
               </table>
+            </>
+          )}
+
+          {tab === 'Domains' && (
+            <>
+              <h3>Domains</h3>
+              <p className="settings-hint">
+                The disciplines people on your team work in — Frontend, Backend, QA, Cloud/DevOps, Design,
+                whatever fits. Assign someone's domain from the Users tab. Purely descriptive — doesn't
+                grant or restrict anything.
+              </p>
+              <SettingsList
+                items={domains}
+                reorderable
+                addPlaceholder="New domain name"
+                onCreate={(data) => api.adminCreateDomain(data).then(refresh)}
+                onUpdate={(id, patch) => api.adminUpdateDomain(id, patch).then(refresh)}
+                onDelete={(id, reassignTo) => api.adminDeleteDomain(id, reassignTo).then(refresh)}
+                onReorder={(ordered) => Promise.all(ordered.map((item, idx) => api.adminUpdateDomain(item.id, { sort_order: idx }))).then(refresh)}
+              />
             </>
           )}
 

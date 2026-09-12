@@ -17,6 +17,16 @@ function myWorkspaces(userId) {
   ).all(userId);
 }
 
+// Projects this user has stakeholder (read-only, high-level) access to —
+// independent of workspace membership, see routes/projectSummary.js.
+function myStakeholderProjects(userId) {
+  return db.prepare(
+    `SELECT p.id, p.name, p.workspace_id, w.name as workspace_name
+     FROM project_stakeholders ps JOIN projects p ON p.id = ps.project_id JOIN workspaces w ON w.id = p.workspace_id
+     WHERE ps.user_id = ? ORDER BY p.name COLLATE NOCASE`
+  ).all(userId);
+}
+
 function slugify(name) {
   const base = String(name).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'org';
   let slug = base;
@@ -73,7 +83,7 @@ router.post('/register', (req, res) => {
 
   req.session.userId = info.lastInsertRowid;
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
-  res.status(201).json({ user: publicUser(user), workspaces: myWorkspaces(info.lastInsertRowid) });
+  res.status(201).json({ user: publicUser(user), workspaces: myWorkspaces(info.lastInsertRowid), stakeholderProjects: myStakeholderProjects(info.lastInsertRowid) });
 });
 
 router.post('/login', (req, res) => {
@@ -87,7 +97,7 @@ router.post('/login', (req, res) => {
   }
 
   req.session.userId = user.id;
-  res.json({ user: publicUser(user), workspaces: myWorkspaces(user.id) });
+  res.json({ user: publicUser(user), workspaces: myWorkspaces(user.id), stakeholderProjects: myStakeholderProjects(user.id) });
 });
 
 router.post('/logout', (req, res) => {
@@ -96,7 +106,7 @@ router.post('/logout', (req, res) => {
 });
 
 router.get('/me', requireAuth, (req, res) => {
-  res.json({ user: publicUser(req.user), workspaces: myWorkspaces(req.user.id) });
+  res.json({ user: publicUser(req.user), workspaces: myWorkspaces(req.user.id), stakeholderProjects: myStakeholderProjects(req.user.id) });
 });
 
 export default router;

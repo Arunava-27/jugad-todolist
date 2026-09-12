@@ -157,6 +157,7 @@ const PATHS = {
       <line x1="11" y1="17" x2="16.5" y2="17" />
     </>
   ),
+  chevron: <polyline points="6,9 12,15.5 18,9" strokeLinejoin="round" />,
 };
 
 export default function Icon({ name, size = 17, filled = false, className = '', style }) {
