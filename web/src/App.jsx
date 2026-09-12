@@ -8,6 +8,7 @@ import CreateWorkspace from './pages/CreateWorkspace.jsx';
 import StakeholderView from './pages/StakeholderView.jsx';
 import Settings from './pages/Settings.jsx';
 import Admin from './pages/Admin.jsx';
+import Guides from './pages/Guides.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import TaskList from './components/TaskList.jsx';
 import SectionedTaskList from './components/SectionedTaskList.jsx';
@@ -129,7 +130,7 @@ export default function App() {
   }, [user, activeWorkspaceId, refreshLookups]);
 
   const loadTasks = useCallback(() => {
-    if (!user || !activeWorkspaceId || view.type === 'settings' || view.type === 'admin') return;
+    if (!user || !activeWorkspaceId || view.type === 'settings' || view.type === 'admin' || view.type === 'guides') return;
     setLoadingTasks(true);
     const params = {};
     if (view.type === 'today') {
@@ -228,6 +229,7 @@ export default function App() {
     all: { icon: 'grid', label: 'All tasks' },
     settings: { icon: 'gear', label: 'Settings' },
     admin: { icon: 'shield', label: 'Admin' },
+    guides: { icon: 'book', label: 'Guides' },
   };
   const viewMeta = VIEW_META[view.type] || (
     view.type === 'project' ? { icon: null, label: currentProject?.name }
@@ -355,6 +357,8 @@ export default function App() {
             currentUserRole={user.role}
             onOpenWorkspace={(id) => { switchWorkspace(id); setView({ type: 'today' }); }}
           />
+        ) : view.type === 'guides' ? (
+          <Guides isOwnerOrAdmin={user.role === 'owner' || user.role === 'admin'} />
         ) : (
           <>
             <QuickAdd onCreate={handleCreateTask} projects={projects} priorities={priorities} readOnly={isViewer} />

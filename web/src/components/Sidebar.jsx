@@ -173,6 +173,10 @@ export default function Sidebar({
         )}
 
         <button
+          className={`nav-item ${view.type === 'guides' ? 'active' : ''}`}
+          onClick={() => onSelectView({ type: 'guides' })}
+        ><span className="nav-icon"><Icon name="book" size={16} /></span> Guides</button>
+        <button
           className={`nav-item ${view.type === 'settings' ? 'active' : ''}`}
           onClick={() => onSelectView({ type: 'settings' })}
         ><span className="nav-icon"><Icon name="gear" size={16} /></span> Settings</button>

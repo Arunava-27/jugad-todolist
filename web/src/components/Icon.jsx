@@ -158,6 +158,12 @@ const PATHS = {
     </>
   ),
   chevron: <polyline points="6,9 12,15.5 18,9" strokeLinejoin="round" />,
+  book: (
+    <>
+      <path d="M12 6.7c-1.9-1.4-4.2-2.1-6.7-2.1-1 0-1.5.4-1.5 1.3v10.7c0 .8.5 1.3 1.5 1.3 2.5 0 4.8.7 6.7 2.1 1.9-1.4 4.2-2.1 6.7-2.1 1 0 1.5-.5 1.5-1.3V5.9c0-.9-.5-1.3-1.5-1.3-2.5 0-4.8.7-6.7 2.1Z" strokeLinejoin="round" />
+      <line x1="12" y1="6.7" x2="12" y2="19.7" />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = 17, filled = false, className = '', style }) {
