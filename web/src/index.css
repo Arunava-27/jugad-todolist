@@ -497,12 +497,61 @@ button.ghost { background: none; border: 1px solid var(--line); padding: 8px 14p
 .landing-preview-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-soft); }
 
 .landing section { padding: 64px 0; }
-.landing-features h2 { font-size: clamp(1.6rem, 2vw + 1rem, 2.1rem); font-weight: 600; }
-.landing-section-sub { color: var(--ink-soft); font-size: 16px; line-height: 1.65; max-width: 62ch; margin: 14px 0 0; }
+.landing-why h2, .landing-showcase h2, .landing-features h2 { font-size: clamp(1.6rem, 2vw + 1rem, 2.1rem); font-weight: 600; }
+.landing-section-sub { color: var(--ink-soft); font-size: 16px; line-height: 1.65; max-width: 48ch; margin: 14px 0 0; }
+
+/* ---- why ---- */
+.landing-why { border-top: 1px solid var(--line); }
+.landing-why-inner { max-width: 640px; }
+.landing-why-inner p { color: var(--ink-soft); font-size: 17px; line-height: 1.7; margin: 16px 0 0; }
+.landing-benefit-list {
+  list-style: none; margin: 26px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px 28px;
+}
+.landing-benefit-list li { display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 500; color: var(--ink); }
+.landing-benefit-list .icon { color: var(--good); }
+
+/* ---- illustrated showcase rows ---- */
+.landing-showcase { border-top: 1px solid var(--line); }
+.landing-showcase-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 52px; align-items: center; }
+.landing-showcase.alt .landing-showcase-grid > *:first-child { order: 2; }
+.landing-showcase.alt .landing-showcase-grid > *:last-child { order: 1; }
+
+/* quick-add demo */
+.landing-demo {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow); padding: 22px; display: flex; flex-direction: column; gap: 16px;
+}
+.landing-demo-input {
+  display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 15px;
+  color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px;
+  background: var(--panel-sunk); min-height: 22px;
+}
+.landing-demo-input .icon { color: var(--ink-soft); flex-shrink: 0; }
+.landing-caret {
+  width: 2px; height: 17px; background: var(--accent); display: inline-block; flex-shrink: 0;
+  animation: landing-blink 1s step-end infinite;
+}
+@keyframes landing-blink { 50% { opacity: 0; } }
+.landing-demo-chips { display: flex; flex-wrap: wrap; gap: 8px; min-height: 26px; }
+.landing-demo-chips .chip { opacity: 0; transform: translateY(4px) scale(0.94); }
+.landing-demo-chips.show .chip {
+  opacity: 1; transform: none; transition: opacity 0.28s ease, transform 0.28s ease;
+  transition-delay: calc(var(--i) * 90ms);
+}
+
+/* board illustration */
+.landing-board-frame {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow); padding: 18px; overflow-x: auto;
+}
+.landing-board-row { display: flex; gap: 12px; }
+.landing-board-row .board-column { min-width: 168px; max-width: 168px; cursor: default; }
+.landing-board-row .board-column-title { cursor: default; }
+.landing-board-row .board-card { cursor: default; }
 
 .landing-features { border-top: 1px solid var(--line); }
 .landing-feature-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line);
   border-radius: var(--radius); overflow: hidden; margin-top: 36px;
 }
 .landing-feature { background: var(--panel); padding: 26px 24px; display: flex; flex-direction: column; gap: 12px; }
@@ -519,7 +568,9 @@ button.ghost { background: none; border: 1px solid var(--line); padding: 8px 14p
   .landing-wrap { padding: 0 20px; }
   .landing-hero { padding: 48px 0 56px; }
   .landing-hero-grid { grid-template-columns: 1fr; gap: 36px; }
-  .landing-feature-grid { grid-template-columns: 1fr 1fr; }
+  .landing-showcase-grid { grid-template-columns: 1fr; gap: 28px; }
+  .landing-showcase.alt .landing-showcase-grid > *:first-child,
+  .landing-showcase.alt .landing-showcase-grid > *:last-child { order: initial; }
   .landing-foot-row { flex-direction: column; align-items: flex-start; }
 }
 @media (max-width: 560px) {

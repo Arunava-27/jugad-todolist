@@ -1,29 +1,22 @@
+import { useEffect, useState } from 'react';
 import Icon, { Logo } from '../components/Icon.jsx';
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Illustrative sample rows for the hero preview — not real task data, and
 // labeled as such in the UI (see the "a look inside" caption below).
 const PREVIEW_ROWS = [
-  { title: 'Fix login redirect on iOS', done: true, chips: ['HAL App', 'frontend'] },
-  { title: 'Ship v2.3 build to testers', done: false, chips: ['Tomorrow', 'HAL App'], dueChip: 0 },
-  { title: 'Wire training data pipeline', done: true, chips: ['IEMA AI'] },
-  { title: 'Update storefront checkout copy', done: false, chips: ['Fri', 'IEM BrandStore'], dueChip: 0 },
+  { title: 'Fix mobile nav overflow', done: true, chips: ['Website', 'frontend'] },
+  { title: 'Write onboarding email copy', done: false, chips: ['Tomorrow', 'Marketing'], dueChip: 0 },
+  { title: 'Set up staging environment', done: true, chips: ['Backend'] },
+  { title: 'QA the checkout flow', done: false, chips: ['Fri', 'Website'], dueChip: 0 },
 ];
 
 const FEATURES = [
   {
-    icon: 'grid',
-    title: 'Board and list, both',
-    body: 'Drag tasks across a Kanban board by status, or work a flat list grouped by section — same data, whichever view fits the moment.',
-  },
-  {
     icon: 'check',
     title: 'Sub-tasks',
     body: 'Break one task into a checklist without spinning up a whole new ticket for each step.',
-  },
-  {
-    icon: 'bolt',
-    title: 'Quick-add, in plain English',
-    body: null, // rendered specially below, to include a <code> snippet
   },
   {
     icon: 'gear',
@@ -38,9 +31,111 @@ const FEATURES = [
   {
     icon: 'server',
     title: 'Self-hosted, on purpose',
-    body: "Runs on a droplet behind our own domain, HTTPS handled automatically. Nobody else's outage takes it down.",
+    body: "Runs on a droplet behind your own domain, HTTPS handled automatically. Nobody else's outage takes it down.",
   },
 ];
+
+// A small illustrative board — static, but built from the app's own board
+// classes (.board-column / .board-card etc.) so it's a true reflection of
+// the real view, not a separate mockup that can drift out of sync with it.
+const BOARD_COLUMNS = [
+  { name: 'To do', accent: '#94a3b8', cards: [
+    { title: 'Redesign settings page' },
+    { title: 'Write API docs' },
+  ] },
+  { name: 'In progress', accent: '#d9a02a', cards: [
+    { title: 'Fix mobile nav overflow', priority: '#d9a02a' },
+  ] },
+  { name: 'Done', accent: '#3f8f6f', cards: [
+    { title: 'Ship v1.2 release', priority: '#3f8f6f', done: true },
+    { title: 'Set up CI pipeline', priority: '#3f8f6f', done: true },
+  ] },
+];
+
+const QUICK_ADD_TEXT = 'tomorrow #Website @frontend p1';
+const QUICK_ADD_CHIPS = [
+  { icon: 'calendar', label: 'Tomorrow' },
+  { icon: 'folder', label: 'Website' },
+  { icon: null, label: '#frontend' },
+  { icon: 'flag', label: 'P1' },
+];
+
+function QuickAddDemo() {
+  const [typed, setTyped] = useState('');
+  const [showChips, setShowChips] = useState(false);
+
+  useEffect(() => {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+      setTyped(QUICK_ADD_TEXT);
+      setShowChips(true);
+      return;
+    }
+    let cancelled = false;
+    (async function loop() {
+      while (!cancelled) {
+        setShowChips(false);
+        for (let i = 0; i <= QUICK_ADD_TEXT.length; i++) {
+          if (cancelled) return;
+          setTyped(QUICK_ADD_TEXT.slice(0, i));
+          await sleep(45);
+        }
+        await sleep(450);
+        if (cancelled) return;
+        setShowChips(true);
+        await sleep(3200);
+        if (cancelled) return;
+        for (let i = QUICK_ADD_TEXT.length; i >= 0; i--) {
+          if (cancelled) return;
+          setTyped(QUICK_ADD_TEXT.slice(0, i));
+          await sleep(18);
+        }
+        await sleep(600);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  return (
+    <div className="landing-demo" aria-hidden="true">
+      <div className="landing-demo-input">
+        <Icon name="plus" size={14} />
+        <span>{typed}</span>
+        <span className="landing-caret" />
+      </div>
+      <div className={`landing-demo-chips ${showChips ? 'show' : ''}`}>
+        {QUICK_ADD_CHIPS.map((c, i) => (
+          <span className="chip" key={c.label} style={{ '--i': i }}>
+            {c.icon && <Icon name={c.icon} size={11} />} {c.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BoardIllustration() {
+  return (
+    <div className="landing-board-frame" aria-hidden="true">
+      <div className="landing-board-row">
+        {BOARD_COLUMNS.map((col) => (
+          <div className="board-column" key={col.name} style={{ '--column-accent': col.accent }}>
+            <div className="board-column-title">{col.name} <span className="nav-count">{col.cards.length}</span></div>
+            <div className="board-column-body">
+              {col.cards.map((card) => (
+                <div className="board-card" key={card.title} style={{ '--priority-accent': card.priority }}>
+                  <div className="board-card-title" style={card.done ? { textDecoration: 'line-through', color: 'var(--ink-soft)' } : undefined}>
+                    {card.title}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function Landing({ onSignIn }) {
   return (
@@ -59,9 +154,9 @@ export default function Landing({ onSignIn }) {
             <div>
               <h1>The list you clear<br />before you call it done.</h1>
               <p className="landing-hero-sub">
-                Punchlist is a self-hosted task tracker built for one small engineering team —
-                no per-seat pricing, no storage tier, no vendor to negotiate with. Just a
-                $6-a-month server, running software we actually own.
+                Punchlist is a self-hosted task tracker — board and list views, sub-tasks,
+                natural-language quick-add, and full control over your own workflow. No per-seat
+                pricing, no storage tier, because it runs on a server you own.
               </p>
               <div className="landing-hero-cta">
                 <button className="landing-btn-amber" onClick={onSignIn}>
@@ -96,26 +191,64 @@ export default function Landing({ onSignIn }) {
               </div>
               <div className="landing-preview-foot">
                 <span>Board · List · Sub-tasks</span>
-                <span>4 people · 4 projects</span>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="landing-why">
+          <div className="landing-wrap landing-why-inner">
+            <h2>Most task trackers charge you for growing</h2>
+            <p>
+              A per-seat price that climbs with headcount. A storage cap that fills up right when
+              it's least convenient. A free tier that quietly narrows every year. Punchlist skips
+              all of it — it's software you run yourself, on a server that costs a flat few dollars
+              a month, with nothing metered and nothing that expires.
+            </p>
+            <ul className="landing-benefit-list">
+              <li><Icon name="check" size={14} /> No per-seat pricing</li>
+              <li><Icon name="check" size={14} /> No storage cap</li>
+              <li><Icon name="check" size={14} /> You own the server</li>
+            </ul>
+          </div>
+        </section>
+
+        <section className="landing-showcase">
+          <div className="landing-wrap landing-showcase-grid">
+            <div>
+              <h2>Type it the way you'd say it</h2>
+              <p className="landing-section-sub">
+                Skip the dropdowns. Write a task the way you'd describe it out loud, and Punchlist
+                reads the due date, project, label, and priority straight out of the sentence.
+              </p>
+            </div>
+            <QuickAddDemo />
+          </div>
+        </section>
+
+        <section className="landing-showcase alt">
+          <div className="landing-wrap landing-showcase-grid">
+            <BoardIllustration />
+            <div>
+              <h2>See it as a board, or see it as a list</h2>
+              <p className="landing-section-sub">
+                Every project is a Kanban board and a flat list at the same time — drag a card
+                across statuses, or scroll a grouped list when you just need to move fast. Same
+                tasks, whichever view fits the moment.
+              </p>
             </div>
           </div>
         </section>
 
         <section className="landing-features">
           <div className="landing-wrap">
-            <h2>Everything a punch list needs</h2>
-            <p className="landing-section-sub">Not a Notion clone with fewer features — the parts of a task tracker this team actually uses, and nothing pretending to be enterprise software.</p>
+            <h2>And everything else a punch list needs</h2>
             <div className="landing-feature-grid">
               {FEATURES.map((f) => (
                 <div className="landing-feature" key={f.title}>
                   <div className="landing-feature-icon"><Icon name={f.icon} size={19} /></div>
                   <h3>{f.title}</h3>
-                  {f.title === 'Quick-add, in plain English' ? (
-                    <p>Type <code>tomorrow #HAL App @frontend p1</code> and Punchlist parses the due date, project, label, and priority for you.</p>
-                  ) : (
-                    <p>{f.body}</p>
-                  )}
+                  <p>{f.body}</p>
                 </div>
               ))}
             </div>
