@@ -1,6 +1,6 @@
 {
-  "name": "Jugad Todolist",
-  "short_name": "Jugad",
+  "name": "Punchlist",
+  "short_name": "Punchlist",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#E9EEF2",

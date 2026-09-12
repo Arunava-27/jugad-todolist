@@ -28,7 +28,7 @@ export default function Register({ onRegistered, onSwitchToLogin }) {
   return (
     <div className="login-screen">
       <form className="login-card" onSubmit={submit}>
-        <div className="login-brand"><Logo size={26} /><h1>Jugad Todolist</h1></div>
+        <div className="login-brand"><Logo size={26} /><h1>Punchlist</h1></div>
         <p className="login-sub">Create your account</p>
         <label>
           Name

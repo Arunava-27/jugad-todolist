@@ -66,5 +66,5 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`jugad-todolist server listening on :${PORT}`);
+  console.log(`Punchlist server listening on :${PORT}`);
 });

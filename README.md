@@ -1,4 +1,4 @@
-# Jugad Todolist
+# Punchlist
 
 A self-hosted, Todoist-style task manager — no per-vendor storage/usage caps, because it runs on
 your own server. Multi-user with real accounts, an admin account seeded from env vars, and

@@ -99,7 +99,7 @@ export default function Sidebar({
       {open && <div className="sidebar-scrim" onClick={onClose} />}
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <Logo /> Jugad Todolist
+          <Logo /> Punchlist
         </div>
 
         <select className="workspace-switcher" value={activeInList ? activeWorkspaceId : ''} onChange={handleWorkspaceSelect}>
