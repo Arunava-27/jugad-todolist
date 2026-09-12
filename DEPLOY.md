@@ -53,35 +53,39 @@ Edit `.env` and fill in:
 - `ADMIN_PASSWORD_HASH` = output of `node scripts/hash-password.js "your-password"` (run this once
   locally where Node is installed, or `docker compose run --rm app node scripts/hash-password.js "your-password"`
   after step 6 below)
-- `DEFAULT_WORKSPACE_NAME` = whatever you want the admin's first workspace called (optional, defaults
-  to "Default Workspace")
 - `SESSION_SECRET` = any long random string
+
+There's no predefined workspace — the admin account starts in zero workspaces (a normal state) and
+creates its first one from the app itself, the same way any user does.
 
 Registration is open by default — anyone with the site URL can create their own account (and gets
 their own workspace). If you'd rather lock that down, that's a code change to `server/src/routes/auth.js`
 (e.g. gate `/register` behind an invite code) — ask for it if you want it added.
 
-## 6. Import your Notion backup once
-
-The snapshot already pulled from Notion lives in `scripts/notion-export.json` (committed with the repo).
-Running the import boots the same admin/workspace seeding the server does, then imports into that
-workspace — do this before first `docker compose up`:
-
-```bash
-docker compose run --rm app node scripts/import-notion.js
-```
-
-This writes into the same `/data` volume the app will use, so your ~95 tasks and 4 projects are there
-the first time you open the site.
-
-## 7. Start everything
+## 6. Start everything
 
 ```bash
 docker compose up -d --build
 ```
 
 Caddy will automatically request a Let's Encrypt certificate for your DOMAIN the first time it's hit —
-give it a minute, then visit `https://<your-domain>` and log in.
+give it a minute, then visit `https://<your-domain>` and log in as the admin.
+
+There's no predefined workspace — you'll land on a "create a workspace" screen the first time you sign
+in. Create one before moving on to the next step.
+
+## 7. Import your Notion backup once (optional)
+
+The snapshot already pulled from Notion lives in `scripts/notion-export.json` (committed with the repo).
+Only meaningful once at least one workspace exists (see step 6) — it imports into whichever workspace
+it finds:
+
+```bash
+docker compose exec app node scripts/import-notion.js
+```
+
+This writes into the same `/data` volume the app uses, so your ~95 tasks and 4 projects show up the
+next time you reload the site.
 
 ## 8. Updating later
 

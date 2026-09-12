@@ -51,9 +51,8 @@ router.delete('/:id', (req, res) => {
   if (!workspace) return res.status(404).json({ error: 'Workspace not found' });
   if (!isManager(req.user, id)) return res.status(403).json({ error: 'Only the workspace owner or an admin can do that' });
 
-  const total = db.prepare('SELECT COUNT(*) c FROM workspaces').get().c;
-  if (total <= 1) return res.status(400).json({ error: 'At least one workspace must remain' });
-
+  // No "at least one workspace must remain" guard — zero workspaces is a
+  // normal state now (there's no predefined/default one), not a dead end.
   db.prepare('DELETE FROM workspaces WHERE id = ?').run(id); // members/projects/tasks/etc cascade
   res.json({ ok: true });
 });

@@ -1,12 +1,11 @@
 // One-time import: reads scripts/notion-export.json (a snapshot pulled from the
-// Notion "⚙️ Dev Tasks" + "📁 Projects" databases) and seeds it into the admin's
-// workspace. Safe to re-run: matches existing rows by notion_url and updates
-// them instead of creating duplicates.
+// Notion "⚙️ Dev Tasks" + "📁 Projects" databases) and seeds it into the oldest
+// existing workspace. Safe to re-run: matches existing rows by notion_url and
+// updates them instead of creating duplicates.
 //
-// Requires ADMIN_EMAIL + ADMIN_PASSWORD_HASH to already be set in the
-// environment (same as the server) — importing db/index.js runs the same
-// admin + bootstrap-workspace seeding the server does on boot, and this
-// script imports everything into that workspace.
+// There's no predefined/default workspace — this script imports into whichever
+// workspace already exists (oldest first), so create one first (via the app's
+// own "create a workspace" screen, or the admin) before running this.
 //
 // Usage:  node scripts/import-notion.js   (or  npm run import-notion  from repo root)
 
@@ -21,9 +20,8 @@ const EXPORT_PATH = path.resolve(__dirname, 'notion-export.json');
 const workspace = db.prepare('SELECT id, name FROM workspaces ORDER BY id LIMIT 1').get();
 if (!workspace) {
   console.error(
-    'No workspace found. Set ADMIN_EMAIL, ADMIN_NAME and ADMIN_PASSWORD_HASH in the environment ' +
-    '(same as running the server) before running this import — that seeds the admin account and ' +
-    'its default workspace, which this script imports the Notion data into.'
+    'No workspace found. Create one first — sign in and use the "create a workspace" screen, or ' +
+    'have an admin create one — then re-run this import; it targets whichever workspace exists.'
   );
   process.exit(1);
 }

@@ -197,53 +197,28 @@ export function seedDefaultWorkflow(workspaceId) {
   seedPriorities();
 }
 
-// --- seed the admin account from env, and make sure they always land
-// somewhere: either the existing workspace(s) if any already exist, or a
-// fresh bootstrap workspace (which also absorbs any pre-workspace data) if
-// none do yet. This runs on every boot, not just the very first one — e.g.
-// if ADMIN_EMAIL is later changed to a different address, that new admin
-// account gets created here too, and must not end up with zero workspace
-// memberships (the frontend has nowhere to send a user with none).
+// --- seed the admin account from env. This runs on every boot, not just
+// the very first one — e.g. if ADMIN_EMAIL is later changed to a different
+// address, that new admin account gets created here too.
+//
+// Deliberately does NOT create or join any workspace on the admin's behalf
+// (there is no "predefined workspace" — an admin with zero workspaces is a
+// normal, supported state; see App.jsx's create-workspace prompt). Admins
+// reach every workspace regardless via the Admin screen, and can create a
+// fresh one from the sidebar whenever they actually need one.
 const adminEmail = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
 const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
 const adminName = process.env.ADMIN_NAME || 'Admin';
 
 if (adminEmail && adminPasswordHash) {
-  let admin = db.prepare('SELECT * FROM users WHERE email = ?').get(adminEmail);
+  const admin = db.prepare('SELECT * FROM users WHERE email = ?').get(adminEmail);
   if (!admin) {
-    const info = db.prepare(
+    db.prepare(
       'INSERT INTO users (email, name, password_hash, role, is_active) VALUES (?, ?, ?, ?, 1)'
     ).run(adminEmail, adminName, adminPasswordHash, 'admin');
-    admin = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
   } else if (admin.role !== 'admin') {
     // Env is the source of truth for who the admin is.
     db.prepare('UPDATE users SET role = ? WHERE id = ?').run('admin', admin.id);
-  }
-
-  const hasMembership = db.prepare('SELECT 1 FROM workspace_members WHERE user_id = ?').get(admin.id);
-  if (!hasMembership) {
-    const anyWorkspace = db.prepare('SELECT id FROM workspaces ORDER BY id LIMIT 1').get();
-    if (anyWorkspace) {
-      // Workspace(s) already exist (created by a previous admin, or by users
-      // registering) — join the oldest one as owner rather than creating a
-      // duplicate. Admins can already reach every workspace via the Admin
-      // screen regardless; this just gives them a sane default landing spot.
-      db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(anyWorkspace.id, admin.id, 'owner');
-    } else {
-      const info = db.prepare('INSERT INTO workspaces (name, created_by) VALUES (?, ?)')
-        .run(process.env.DEFAULT_WORKSPACE_NAME || 'Default Workspace', admin.id);
-      const workspaceId = info.lastInsertRowid;
-      db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(workspaceId, admin.id, 'owner');
-
-      // Backfill any rows left over from before workspaces existed (fresh
-      // installs have nothing to backfill here, this is a no-op).
-      for (const table of ['projects', 'tasks', 'labels', 'assignees', 'statuses', 'priorities']) {
-        db.prepare(`UPDATE ${table} SET workspace_id = ? WHERE workspace_id IS NULL`).run(workspaceId);
-      }
-
-      const statusCount = db.prepare('SELECT COUNT(*) c FROM statuses WHERE workspace_id = ?').get(workspaceId).c;
-      if (statusCount === 0) seedDefaultWorkflow(workspaceId);
-    }
   }
 }
 

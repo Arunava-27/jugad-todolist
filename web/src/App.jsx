@@ -3,6 +3,7 @@ import { api, setActiveWorkspaceId } from './lib/api.js';
 import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
+import CreateWorkspace from './pages/CreateWorkspace.jsx';
 import Settings from './pages/Settings.jsx';
 import Admin from './pages/Admin.jsx';
 import Sidebar from './components/Sidebar.jsx';
@@ -120,7 +121,7 @@ export default function App() {
     return <Landing onSignIn={() => setAuthScreen('login')} />;
   }
   if (!activeWorkspaceId) {
-    return <div className="boot-screen">No workspace yet — this shouldn't normally happen. Try logging out and back in.</div>;
+    return <CreateWorkspace userName={user.name} onCreate={handleCreateWorkspace} onLogout={handleLogout} />;
   }
 
   const currentProject = view.type === 'project' ? projects.find((p) => p.id === view.id) : null;

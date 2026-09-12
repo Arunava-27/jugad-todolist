@@ -8,3 +8,4 @@ data/*.bak*
 data/uploads/
 .env
 *.log
+backups/
