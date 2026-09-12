@@ -20,6 +20,11 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
+  // Only the owner (site admin) creates workspaces — everyone else gets
+  // assigned into one by the owner (an invite, or being added by an
+  // existing account's email) rather than spinning up their own.
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Only the owner can create a workspace' });
+
   const name = (req.body?.name || '').trim();
   if (!name) return res.status(400).json({ error: 'name is required' });
 

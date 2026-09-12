@@ -107,7 +107,7 @@ export default function Sidebar({
           {workspaces.map((w) => (
             <option key={w.id} value={w.id}>{w.name}</option>
           ))}
-          <option value={NEW_WORKSPACE}>+ New workspace…</option>
+          {user.role === 'admin' && <option value={NEW_WORKSPACE}>+ New workspace…</option>}
         </select>
 
         <form className="sidebar-search" onSubmit={submitSearch}>

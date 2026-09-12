@@ -203,7 +203,7 @@ export default function App() {
     return <Landing onSignIn={() => setAuthScreen('login')} />;
   }
   if (!activeWorkspaceId) {
-    return <CreateWorkspace userName={user.name} onCreate={handleCreateWorkspace} onLogout={handleLogout} />;
+    return <CreateWorkspace userName={user.name} isOwner={user.role === 'admin'} onCreate={handleCreateWorkspace} onLogout={handleLogout} />;
   }
 
   const currentProject = view.type === 'project' ? projects.find((p) => p.id === view.id) : null;

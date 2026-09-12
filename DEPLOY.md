@@ -66,12 +66,17 @@ actually hosted, ask if you want help finding that), then create an API key unde
 `onboarding@resend.dev` sender, but it can only send to the email address on your own Resend account
 — fine for testing, not for real invites.
 
-There's no predefined workspace — the admin account starts in zero workspaces (a normal state) and
-creates its first one from the app itself, the same way any user does.
+There's no predefined workspace, and only the owner (the seeded admin account) can create one — from
+the app itself, the same "create a workspace" screen anyone with zero workspaces sees, except a
+non-owner just gets a waiting message there instead of a form. The owner assigns everyone else into
+a workspace by inviting their email (Settings → Members) with whatever role fits — admin, member, or
+viewer.
 
-Registration is open by default — anyone with the site URL can create their own account (and gets
-their own workspace). If you'd rather lock that down, that's a code change to `server/src/routes/auth.js`
-(e.g. gate `/register` behind an invite code) — ask for it if you want it added.
+Registration is still open by default — anyone with the site URL can create a Punchlist account —
+but signing up no longer creates a workspace for them; they land on that waiting screen until the
+owner adds them to one. If you'd rather close registration entirely, that's a code change to
+`server/src/routes/auth.js` (e.g. gate `/register` behind an invite code) — ask for it if you want it
+added.
 
 ## 6. Start everything
 

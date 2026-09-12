@@ -64,8 +64,8 @@ async function upload(path, file) {
 
 export const api = {
   me: () => request('/auth/me'),
-  register: (email, name, password, workspaceName, inviteToken) =>
-    request('/auth/register', { method: 'POST', body: JSON.stringify({ email, name, password, workspaceName, inviteToken }) }),
+  register: (email, name, password, inviteToken) =>
+    request('/auth/register', { method: 'POST', body: JSON.stringify({ email, name, password, inviteToken }) }),
   login: (email, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   logout: () => request('/auth/logout', { method: 'POST' }),
 

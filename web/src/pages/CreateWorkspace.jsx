@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Logo } from '../components/Icon.jsx';
 
 // Shown when a signed-in user belongs to zero workspaces — a normal state
-// now that there's no predefined/default workspace created on their behalf.
-// Admins land here too; they can also open any existing workspace from the
-// Admin screen once one exists, but need at least this to create the first.
-export default function CreateWorkspace({ userName, onCreate, onLogout }) {
+// now that there's no predefined/default workspace, and only the owner
+// (site admin) creates workspaces at all. A non-owner with no workspace
+// isn't stuck exactly, but there's nothing for them to do here except wait
+// to be added to one — so they get a plain waiting message, not a form
+// they don't have permission to submit.
+export default function CreateWorkspace({ userName, isOwner, onCreate, onLogout }) {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
@@ -22,6 +24,21 @@ export default function CreateWorkspace({ userName, onCreate, onLogout }) {
     } finally {
       setCreating(false);
     }
+  }
+
+  if (!isOwner) {
+    return (
+      <div className="login-screen">
+        <div className="login-card">
+          <div className="login-brand"><Logo size={26} /><h1>Punchlist</h1></div>
+          <p className="login-sub">
+            {userName ? `${userName}, y` : 'Y'}ou're not in a workspace yet. Only the owner creates
+            workspaces — ask them to add you to one.
+          </p>
+          <button type="button" className="link-btn" onClick={onLogout}>Log out</button>
+        </div>
+      </div>
+    );
   }
 
   return (

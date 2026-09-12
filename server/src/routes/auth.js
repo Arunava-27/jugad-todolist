@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import db, { seedDefaultWorkflow } from '../db/index.js';
+import db from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
@@ -18,7 +18,7 @@ function myWorkspaces(userId) {
 }
 
 router.post('/register', (req, res) => {
-  const { email, name, password, workspaceName, inviteToken } = req.body || {};
+  const { email, name, password, inviteToken } = req.body || {};
   const cleanEmail = String(email || '').trim().toLowerCase();
   const cleanName = String(name || '').trim();
 
@@ -29,40 +29,28 @@ router.post('/register', (req, res) => {
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
   if (existing) return res.status(409).json({ error: 'An account with that email already exists' });
 
-  // Registering via an invite link joins that workspace instead of getting
-  // a personal one auto-created — the invite's own accept endpoint (called
-  // by the frontend right after this) does the actual joining, this just
-  // skips creating a workspace nobody asked for.
-  let pendingInvite = null;
+  // No workspace is ever auto-created here — only the owner (site admin)
+  // creates workspaces, and assigns people into them (by role) via invites
+  // or by adding an existing account's email. Registering via an invite
+  // link still joins that workspace, via the invite's own accept endpoint
+  // (called by the frontend right after this); registering without one
+  // just creates the account, landing on the "waiting for a workspace"
+  // screen until the owner adds them to one.
   if (inviteToken) {
-    pendingInvite = db.prepare("SELECT * FROM invites WHERE token = ? AND status = 'pending'").get(inviteToken);
+    const pendingInvite = db.prepare("SELECT * FROM invites WHERE token = ? AND status = 'pending'").get(inviteToken);
     if (pendingInvite && pendingInvite.email !== cleanEmail) {
       return res.status(400).json({ error: 'This invite was sent to a different email address' });
     }
   }
 
   const passwordHash = bcrypt.hashSync(password, 10);
+  const info = db.prepare(
+    'INSERT INTO users (email, name, password_hash, role, is_active) VALUES (?, ?, ?, ?, 1)'
+  ).run(cleanEmail, cleanName, passwordHash, 'member');
 
-  const result = db.transaction(() => {
-    const userInfo = db.prepare(
-      'INSERT INTO users (email, name, password_hash, role, is_active) VALUES (?, ?, ?, ?, 1)'
-    ).run(cleanEmail, cleanName, passwordHash, 'member');
-    const userId = userInfo.lastInsertRowid;
-
-    if (!pendingInvite) {
-      const wsInfo = db.prepare('INSERT INTO workspaces (name, created_by) VALUES (?, ?)')
-        .run((workspaceName && workspaceName.trim()) || `${cleanName}'s Workspace`, userId);
-      const workspaceId = wsInfo.lastInsertRowid;
-      db.prepare('INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)').run(workspaceId, userId, 'owner');
-      seedDefaultWorkflow(workspaceId);
-    }
-
-    return userId;
-  })();
-
-  req.session.userId = result;
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result);
-  res.status(201).json({ user: publicUser(user), workspaces: myWorkspaces(result) });
+  req.session.userId = info.lastInsertRowid;
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+  res.status(201).json({ user: publicUser(user), workspaces: myWorkspaces(info.lastInsertRowid) });
 });
 
 router.post('/login', (req, res) => {
