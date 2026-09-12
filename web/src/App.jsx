@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { api, setActiveWorkspaceId } from './lib/api.js';
+import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import Settings from './pages/Settings.jsx';
@@ -18,7 +19,7 @@ const ACTIVE_WORKSPACE_KEY = 'jugad-active-workspace';
 
 export default function App() {
   const [authChecked, setAuthChecked] = useState(false);
-  const [authScreen, setAuthScreen] = useState('login'); // 'login' | 'register'
+  const [authScreen, setAuthScreen] = useState('landing'); // 'landing' | 'login' | 'register'
   const [user, setUser] = useState(null);
   const [workspaces, setWorkspaces] = useState([]);
   const [activeWorkspaceId, setActiveWorkspaceIdState] = useState(null);
@@ -110,9 +111,13 @@ export default function App() {
 
   if (!authChecked) return <div className="boot-screen">Loading…</div>;
   if (!user) {
-    return authScreen === 'register'
-      ? <Register onRegistered={applyAuthResult} onSwitchToLogin={() => setAuthScreen('login')} />
-      : <Login onLoggedIn={applyAuthResult} onSwitchToRegister={() => setAuthScreen('register')} />;
+    if (authScreen === 'register') {
+      return <Register onRegistered={applyAuthResult} onSwitchToLogin={() => setAuthScreen('login')} onBack={() => setAuthScreen('landing')} />;
+    }
+    if (authScreen === 'login') {
+      return <Login onLoggedIn={applyAuthResult} onSwitchToRegister={() => setAuthScreen('register')} onBack={() => setAuthScreen('landing')} />;
+    }
+    return <Landing onSignIn={() => setAuthScreen('login')} />;
   }
   if (!activeWorkspaceId) {
     return <div className="boot-screen">No workspace yet — this shouldn't normally happen. Try logging out and back in.</div>;

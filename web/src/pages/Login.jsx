@@ -3,7 +3,7 @@ import { api } from '../lib/api.js';
 import PasswordInput from '../components/PasswordInput.jsx';
 import { Logo } from '../components/Icon.jsx';
 
-export default function Login({ onLoggedIn, onSwitchToRegister }) {
+export default function Login({ onLoggedIn, onSwitchToRegister, onBack }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -26,7 +26,7 @@ export default function Login({ onLoggedIn, onSwitchToRegister }) {
   return (
     <div className="login-screen">
       <form className="login-card" onSubmit={submit}>
-        <div className="login-brand"><Logo size={26} /><h1>Punchlist</h1></div>
+        <button type="button" className="login-brand" onClick={onBack} title="Back to Punchlist"><Logo size={26} /><h1>Punchlist</h1></button>
         <p className="login-sub">Sign in to your workspace</p>
         <label>
           Email

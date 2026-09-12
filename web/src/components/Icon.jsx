@@ -138,6 +138,25 @@ const PATHS = {
       <polyline points="16.5,7 21,12 16.5,17" strokeLinejoin="round" />
     </>
   ),
+  bolt: <path d="M13 2 4 14h6l-1 8 9-12h-6z" strokeLinejoin="round" />,
+  users: (
+    <>
+      <circle cx="8" cy="8" r="3" />
+      <path d="M3 20c0-3.3 2.2-6 5-6s5 2.7 5 6" />
+      <circle cx="16.5" cy="7.5" r="2.4" />
+      <path d="M14 20c.2-2.8 1.8-5 3.8-5.6" />
+    </>
+  ),
+  server: (
+    <>
+      <rect x="4" y="4" width="16" height="6" rx="1.3" />
+      <rect x="4" y="14" width="16" height="6" rx="1.3" />
+      <circle cx="7.5" cy="7" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="7.5" cy="17" r="0.6" fill="currentColor" stroke="none" />
+      <line x1="11" y1="7" x2="16.5" y2="7" />
+      <line x1="11" y1="17" x2="16.5" y2="17" />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = 17, filled = false, className = '', style }) {
