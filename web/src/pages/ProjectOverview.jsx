@@ -3,13 +3,14 @@ import { api } from '../lib/api.js';
 import { colorForPerson, initials } from '../lib/format.js';
 import { PROJECT_STAGES } from '../lib/projectStages.js';
 import ProjectStakeholders from '../components/ProjectStakeholders.jsx';
+import ProjectTeams from '../components/ProjectTeams.jsx';
 
 // A project's home screen — the "front door" you land on when you open a
 // project, before List/Board. Everything about the project itself (stage,
 // description, timeline, progress, who's on it, who's watching it as a
 // stakeholder) lives here instead of being scattered across two Settings
 // tabs, so a project reads as a place, not just a filtered task list.
-export default function ProjectOverview({ project, readOnly, onProjectChanged }) {
+export default function ProjectOverview({ project, members, readOnly, onProjectChanged }) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [description, setDescription] = useState(project.description || '');
@@ -65,7 +66,14 @@ export default function ProjectOverview({ project, readOnly, onProjectChanged })
           )}
 
           <div className="overview-field">
-            <span className="settings-hint" style={{ margin: '0 0 6px' }}>Team</span>
+            <span className="settings-hint" style={{ margin: '0 0 6px' }}>
+              Teams — rosters assembled to work this project, pulling people in across domains
+            </span>
+            <ProjectTeams projectId={project.id} members={members} readOnly={readOnly} />
+          </div>
+
+          <div className="overview-field">
+            <span className="settings-hint" style={{ margin: '0 0 6px' }}>Working on this now</span>
             {summary.team.length === 0 ? (
               <p className="settings-hint" style={{ margin: 0 }}>No one's assigned to a task here yet.</p>
             ) : (

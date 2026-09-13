@@ -103,6 +103,30 @@ CREATE TABLE IF NOT EXISTS project_stakeholders (
   PRIMARY KEY (project_id, user_id)
 );
 
+-- A named roster of people assembled to work ONE project — e.g. "Core Team",
+-- "QA Team" — pulling in whoever's needed across domains (frontend/backend/
+-- cloud/QA/...) to meet that project's requirements. Independent of
+-- `domains` (a purely descriptive per-person label with no membership of its
+-- own) and of `task_members` (who's actually assigned a task right now,
+-- computed, not deliberately assembled). A project can have zero, one, or
+-- several teams — there's no "the one team for this project" assumption
+-- anywhere in the code, so a small project simply has none.
+CREATE TABLE IF NOT EXISTS teams (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  color TEXT DEFAULT '#6366f1',
+  sort_order REAL NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (project_id, name)
+);
+CREATE TABLE IF NOT EXISTS team_members (
+  team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  added_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  PRIMARY KEY (team_id, user_id)
+);
+
 -- Named groupings of tasks within a project's List view (e.g. "Backlog",
 -- "In Review") — independent of a task's status/board column.
 CREATE TABLE IF NOT EXISTS sections (
@@ -218,6 +242,8 @@ CREATE INDEX IF NOT EXISTS idx_workspace_members_user ON workspace_members(user_
 CREATE INDEX IF NOT EXISTS idx_invites_workspace ON invites(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_invites_email ON invites(email);
 CREATE INDEX IF NOT EXISTS idx_sections_project ON sections(project_id);
+CREATE INDEX IF NOT EXISTS idx_teams_project ON teams(project_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_user ON team_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_domains_organization ON domains(organization_id);
 -- NOTE: idx_users_domain is created in db/index.js instead — users.domain_id
 -- is added by a migration on a pre-existing database, same reasoning as the

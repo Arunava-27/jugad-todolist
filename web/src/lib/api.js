@@ -146,4 +146,11 @@ export const api = {
   createSection: (data) => request('/sections', { method: 'POST', body: JSON.stringify(data) }),
   updateSection: (id, data) => request(`/sections/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteSection: (id) => request(`/sections/${id}`, { method: 'DELETE' }),
+
+  listTeams: (projectId) => request(`/teams?project_id=${projectId}`),
+  createTeam: (data) => request('/teams', { method: 'POST', body: JSON.stringify(data) }),
+  updateTeam: (id, data) => request(`/teams/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteTeam: (id) => request(`/teams/${id}`, { method: 'DELETE' }),
+  addTeamMember: (teamId, userId) => request(`/teams/${teamId}/members`, { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
+  removeTeamMember: (teamId, userId) => request(`/teams/${teamId}/members/${userId}`, { method: 'DELETE' }),
 };

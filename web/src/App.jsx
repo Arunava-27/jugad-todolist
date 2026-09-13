@@ -413,6 +413,7 @@ export default function App() {
           currentProject && (
             <ProjectOverview
               project={currentProject}
+              members={members}
               readOnly={!canManage}
               onProjectChanged={refreshLookups}
             />

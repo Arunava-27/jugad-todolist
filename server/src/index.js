@@ -16,6 +16,7 @@ import labelRoutes from './routes/labels.js';
 import statusRoutes from './routes/statuses.js';
 import priorityRoutes from './routes/priorities.js';
 import sectionRoutes from './routes/sections.js';
+import teamRoutes from './routes/teams.js';
 import overviewRoutes from './routes/overview.js';
 import attachmentRoutes from './routes/attachments.js';
 import { requireAuth, requireAdmin, requireWorkspace } from './middleware/auth.js';
@@ -57,6 +58,7 @@ app.use('/api/labels', requireAuth, requireWorkspace, labelRoutes);
 app.use('/api/statuses', requireAuth, requireWorkspace, statusRoutes);
 app.use('/api/priorities', requireAuth, requireWorkspace, priorityRoutes);
 app.use('/api/sections', requireAuth, requireWorkspace, sectionRoutes);
+app.use('/api/teams', requireAuth, requireWorkspace, teamRoutes);
 app.use('/api/overview', requireAuth, requireWorkspace, overviewRoutes);
 app.use('/api', requireAuth, attachmentRoutes); // self-scopes per attachment/task, see routes/attachments.js
 

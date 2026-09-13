@@ -553,6 +553,27 @@ button.ghost { background: none; border: 1px solid var(--line); padding: 8px 14p
 .member-chip .avatar { width: 20px; height: 20px; font-size: 9px; }
 .member-chip.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); font-weight: 600; }
 
+/* ---------- Teams (project-scoped rosters, ProjectOverview) ---------- */
+.team-list { display: flex; flex-direction: column; gap: 10px; }
+.team-card { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px; background: var(--panel); }
+.team-card.drag-over { outline: 2px dashed var(--accent); outline-offset: -2px; }
+.team-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.team-card-header.reorderable { cursor: grab; }
+.team-name-input { flex: 1; border: none; background: none; font-size: 13.5px; font-weight: 600; padding: 4px 6px; border-radius: var(--radius-sm); }
+.team-name-input:focus { background: var(--panel-sunk); outline: none; }
+.team-roster { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.team-member-chip {
+  display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 4px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--panel-sunk); color: var(--ink); font-size: 12.5px;
+}
+.team-member-chip .avatar { width: 20px; height: 20px; font-size: 9px; }
+.team-member-remove {
+  border: none; background: none; color: var(--ink-soft); display: flex; align-items: center; padding: 2px; cursor: pointer;
+}
+.team-member-remove:hover { color: var(--danger); }
+.team-add-member { display: flex; gap: 6px; margin-top: 8px; }
+.team-add-member select { flex: 1; }
+
 /* ---------- Stakeholder view (project-scoped, read-only lane) ---------- */
 .stakeholder-shell { min-height: 100vh; display: flex; flex-direction: column; background: var(--paper); color: var(--ink); }
 .stakeholder-header {

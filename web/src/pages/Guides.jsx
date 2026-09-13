@@ -31,7 +31,8 @@ export default function Guides({ isOwnerOrAdmin }) {
               <ol>
                 <li><strong>Organization</strong> — your whole company. You get one by registering without an invite link; you become its owner.</li>
                 <li><strong>Workspace</strong> — a team or area within the org (e.g. "Engineering", "Marketing"). Only the owner creates workspaces, from the sidebar's workspace switcher.</li>
-                <li><strong>Project</strong> — a body of work inside a workspace (e.g. "Website Revamp"). Opening one lands you on its <strong>Overview</strong> — description, <a href="#" onClick={(e) => { e.preventDefault(); setTopic('Customizing your workflow'); }}>stage</a>, timeline, progress, team, and stakeholders — with List and Board one click away.</li>
+                <li><strong>Project</strong> — a body of work inside a workspace (e.g. "Website Revamp"). Opening one lands you on its <strong>Overview</strong> — description, <a href="#" onClick={(e) => { e.preventDefault(); setTopic('Customizing your workflow'); }}>stage</a>, timeline, progress, teams, and stakeholders — with List and Board one click away.</li>
+                <li><strong>Team</strong> — an optional named roster within a project (e.g. "Core Team"), pulling in real accounts across domains to cover what that project needs. A project can have several, or none.</li>
                 <li><strong>Task</strong> — the actual work. Belongs to a project (or sits in the Inbox with no project), can have a due date, priority, labels, assignees, sub-tasks, and attachments.</li>
               </ol>
 
@@ -89,7 +90,10 @@ export default function Guides({ isOwnerOrAdmin }) {
               <p>Open any project and switch between <strong>Overview</strong>, <strong>List</strong>, and <strong>Board</strong> at the top of the page — Overview is where you land; List and Board show the same underlying tasks in different shapes.</p>
 
               <h4>Overview</h4>
-              <p>The project's home screen — description, stage, timeline, a progress bar, who's on the team, and who has stakeholder access, all editable right there. See "Getting started".</p>
+              <p>The project's home screen — description, stage, timeline, a progress bar, teams, who's currently working on it, and who has stakeholder access, all editable right there. See "Getting started".</p>
+
+              <h4>Teams</h4>
+              <p>A project can have any number of named teams — "Core Team", "QA Team" — assembled from real accounts, drawing across domains (Frontend, Backend, Cloud, QA, whatever fits) to cover what that project actually needs. Set up from the project's Overview, manager+ only. Distinct from "Working on this now" right below it on Overview, which is just a live readout of who currently has a task assigned here — Teams is deliberate, that's computed.</p>
 
               <h4>List view</h4>
               <p>Tasks grouped into <strong>sections</strong> you define (e.g. "Backlog", "In Review") — independent of status. Drag a task between sections, or drag the section handles to reorder them, from Settings or directly in the list.</p>
@@ -121,7 +125,7 @@ export default function Guides({ isOwnerOrAdmin }) {
 
               <h4>Project stage</h4>
               <p>Each project also carries a lifecycle stage — <strong>Planning → Active → On Hold → Testing → Launched</strong> — set from the same Projects list, or from the project's own Overview. It's shown as a badge at the top of the project view. This is separate from both task statuses (which drive the board columns) and the Archived flag (which just controls sidebar visibility).</p>
-              <p>Description, start/target dates, team, and stakeholders aren't in Settings at all — those live on the project's own <strong>Overview</strong> tab (see "List &amp; board views").</p>
+              <p>Description, start/target dates, teams, and stakeholders aren't in Settings at all — those live on the project's own <strong>Overview</strong> tab (see "List &amp; board views").</p>
             </>
           )}
 
