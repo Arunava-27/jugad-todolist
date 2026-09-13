@@ -372,7 +372,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .attachment-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .attachment-thumb {
   position: relative; width: 72px; height: 72px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--line);
+  cursor: pointer;
 }
+.attachment-thumb.reorderable { cursor: grab; }
+.attachment-thumb.drag-over { outline: 2px dashed var(--accent); outline-offset: -2px; }
 .attachment-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .attachment-remove {
   position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; border: none;
@@ -380,11 +383,44 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   display: flex; align-items: center; justify-content: center;
 }
 .attachment-remove:hover { background: var(--danger); }
+.attachment-caption-dot {
+  position: absolute; bottom: 2px; left: 2px; right: 2px; background: rgba(10, 13, 20, 0.55); color: #fff;
+  font-size: 9px; padding: 1px 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .attachment-add {
   width: 72px; height: 72px; border-radius: var(--radius-sm); border: 1px dashed var(--line); color: var(--ink-soft);
   display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
 .attachment-add:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ---------- Attachment lightbox ---------- */
+.lightbox-scrim {
+  position: fixed; inset: 0; background: rgba(6, 8, 13, 0.85); display: flex; align-items: center; justify-content: center;
+  z-index: 40; padding: 24px;
+}
+.lightbox-close { position: absolute; top: 16px; right: 16px; color: #fff; background: rgba(255,255,255,0.1); }
+.lightbox-close:hover { background: rgba(255,255,255,0.2); }
+.lightbox-nav {
+  position: absolute; top: 50%; transform: translateY(-50%); color: #fff; background: rgba(255,255,255,0.1);
+  width: 40px; height: 40px;
+}
+.lightbox-nav:hover { background: rgba(255,255,255,0.2); }
+.lightbox-prev { left: 16px; }
+.lightbox-next { right: 16px; }
+.lightbox-body { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 90vw; max-height: 90vh; }
+.lightbox-image { max-width: 90vw; max-height: 72vh; object-fit: contain; border-radius: var(--radius-sm); }
+.lightbox-footer { display: flex; align-items: center; gap: 12px; color: #fff; width: 100%; }
+.lightbox-meta { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.lightbox-filename { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lightbox-footer .settings-hint { color: rgba(255,255,255,0.65); }
+.lightbox-footer .icon-btn { color: #fff; }
+.lightbox-footer .icon-btn:hover { background: rgba(255,255,255,0.15); }
+.lightbox-caption-input {
+  width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); color: #fff;
+  border-radius: var(--radius-sm); padding: 7px 10px; font-size: 13px;
+}
+.lightbox-caption-input::placeholder { color: rgba(255,255,255,0.45); }
+.lightbox-caption-text { width: 100%; margin: 0; font-size: 13px; color: rgba(255,255,255,0.85); }
 .modal-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
 .modal-footer-right { display: flex; gap: 8px; }
 

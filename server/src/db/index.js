@@ -242,6 +242,28 @@ if (orphanUserCount > 0 || orphanWorkspaceCount > 0) {
   })();
 }
 
+// --- image attachments, hardened (uploader tracking, captions, manual reorder) ---
+if (!hasColumn('attachments', 'user_id')) {
+  db.exec('ALTER TABLE attachments ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE SET NULL');
+}
+if (!hasColumn('attachments', 'caption')) {
+  db.exec('ALTER TABLE attachments ADD COLUMN caption TEXT');
+}
+if (!hasColumn('attachments', 'sort_order')) {
+  db.exec('ALTER TABLE attachments ADD COLUMN sort_order REAL NOT NULL DEFAULT 0');
+  // Stable initial order (previously implicit upload/created_at order) instead
+  // of leaving every row at 0 — scoped per task, since that's the only scope
+  // attachments are ever listed within (same reasoning as labels/statuses'
+  // sort_order backfill above, just grouped rather than global).
+  const taskIds = db.prepare('SELECT DISTINCT task_id FROM attachments').all().map((r) => r.task_id);
+  const updateOrder = db.prepare('UPDATE attachments SET sort_order = ? WHERE id = ?');
+  for (const taskId of taskIds) {
+    const rows = db.prepare('SELECT id FROM attachments WHERE task_id = ? ORDER BY created_at').all(taskId);
+    rows.forEach((r, idx) => updateOrder.run(idx, r.id));
+  }
+}
+db.exec('CREATE INDEX IF NOT EXISTS idx_attachments_user ON attachments(user_id)');
+
 // Now that every table definitely has workspace_id (and correct FK text),
 // it's safe to index it and turn foreign key enforcement back on.
 db.exec(`

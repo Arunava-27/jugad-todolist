@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { api } from '../lib/api.js';
 import { confirmDialog, alertDialog } from '../lib/dialogs.js';
 import { colorForPerson, initials } from '../lib/format.js';
+import { resizeImageForUpload } from '../lib/imageResize.js';
 import SubtaskList from './SubtaskList.jsx';
 import TaskActivity from './TaskActivity.jsx';
+import AttachmentLightbox from './AttachmentLightbox.jsx';
 import Icon from './Icon.jsx';
 
 export default function TaskModal({ task, projects, statuses, priorities, members, currentUserId, canManage, readOnly, onClose, onUpdate, onDelete }) {
@@ -12,16 +14,27 @@ export default function TaskModal({ task, projects, statuses, priorities, member
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [sectionOptions, setSectionOptions] = useState([]);
+  const [lightboxIndex, setLightboxIndex] = useState(null);
+  const [dragAttachmentId, setDragAttachmentId] = useState(null);
+  const [dragOverAttachmentId, setDragOverAttachmentId] = useState(null);
 
-  async function handleFileChange(e) {
-    const file = e.target.files[0];
-    e.target.value = ''; // allow re-selecting the same file later
-    if (!file) return;
+  // Whoever uploaded an image, or a manager+, can caption/reorder/remove it —
+  // mirrors the exact rule the server enforces in attachments.js, so the UI
+  // never offers a control that would just 403.
+  function canEditAttachment(a) {
+    return !readOnly && (canManage || a.user_id === currentUserId);
+  }
+
+  async function handleFilesChange(e) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = ''; // allow re-selecting the same file(s) later
+    if (!files.length) return;
     setUploading(true);
     setUploadError('');
     try {
-      const uploaded = await api.uploadAttachment(task.id, file);
-      setAttachments((prev) => [...prev, uploaded]);
+      const resized = await Promise.all(files.map(resizeImageForUpload));
+      const uploaded = await api.uploadAttachments(task.id, resized);
+      setAttachments((prev) => [...prev, ...uploaded]);
     } catch (err) {
       setUploadError(err.message || 'Upload failed');
     } finally {
@@ -31,11 +44,34 @@ export default function TaskModal({ task, projects, statuses, priorities, member
 
   async function removeAttachment(id) {
     setAttachments((prev) => prev.filter((a) => a.id !== id)); // optimistic
+    if (lightboxIndex !== null) setLightboxIndex(null); // the open image may have just been removed
     try {
       await api.deleteAttachment(id);
     } catch {
       setAttachments(task.attachments || []); // revert on failure
     }
+  }
+
+  async function saveAttachmentCaption(id, caption) {
+    const updated = await api.updateAttachment(id, { caption });
+    setAttachments((prev) => prev.map((a) => (a.id === id ? updated : a)));
+  }
+
+  function handleAttachmentDrop(targetId) {
+    setDragOverAttachmentId(null);
+    if (!dragAttachmentId || dragAttachmentId === targetId) { setDragAttachmentId(null); return; }
+    const ids = attachments.map((a) => a.id);
+    const from = ids.indexOf(dragAttachmentId);
+    const to = ids.indexOf(targetId);
+    setDragAttachmentId(null);
+    if (from === -1 || to === -1) return;
+    const reordered = [...attachments];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    setAttachments(reordered); // optimistic
+    api.reorderAttachments(task.id, reordered.map((a) => a.id))
+      .then(setAttachments)
+      .catch(() => setAttachments(task.attachments || [])); // revert on failure
   }
 
   const [form, setForm] = useState({
@@ -237,14 +273,24 @@ export default function TaskModal({ task, projects, statuses, priorities, member
           <div className="settings-hint" style={{ marginBottom: 8 }}>Images</div>
           {uploadError && <div className="login-error" style={{ marginBottom: 8 }}>{uploadError}</div>}
           <div className="attachment-grid">
-            {attachments.map((a) => (
-              <div className="attachment-thumb" key={a.id}>
-                <img src={a.url} alt={a.original_name} />
+            {attachments.map((a, idx) => (
+              <div
+                className={`attachment-thumb ${!readOnly ? 'reorderable' : ''} ${dragOverAttachmentId === a.id ? 'drag-over' : ''}`}
+                key={a.id}
+                draggable={!readOnly}
+                onDragStart={() => setDragAttachmentId(a.id)}
+                onDragOver={(e) => { if (!readOnly) { e.preventDefault(); setDragOverAttachmentId(a.id); } }}
+                onDragLeave={() => setDragOverAttachmentId((cur) => (cur === a.id ? null : cur))}
+                onDrop={(e) => { if (!readOnly) { e.preventDefault(); handleAttachmentDrop(a.id); } }}
+                onClick={() => setLightboxIndex(idx)}
+              >
+                <img src={a.url} alt={a.caption || a.original_name} />
+                {a.caption && <span className="attachment-caption-dot">{a.caption}</span>}
                 {!readOnly && (
                   <button
                     type="button"
                     className="attachment-remove"
-                    onClick={() => removeAttachment(a.id)}
+                    onClick={(e) => { e.stopPropagation(); removeAttachment(a.id); }}
                     title={`Remove ${a.original_name}`}
                   ><Icon name="x" size={10} /></button>
                 )}
@@ -253,7 +299,7 @@ export default function TaskModal({ task, projects, statuses, priorities, member
             {!readOnly && (
               <label className="attachment-add">
                 {uploading ? '…' : <Icon name="plus" size={18} />}
-                <input type="file" accept="image/*" hidden onChange={handleFileChange} disabled={uploading} />
+                <input type="file" accept="image/*" multiple hidden onChange={handleFilesChange} disabled={uploading} />
               </label>
             )}
             {readOnly && attachments.length === 0 && (
@@ -262,6 +308,17 @@ export default function TaskModal({ task, projects, statuses, priorities, member
           </div>
         </div>
         </>
+        )}
+
+        {lightboxIndex !== null && (
+          <AttachmentLightbox
+            attachments={attachments}
+            index={lightboxIndex}
+            onClose={() => setLightboxIndex(null)}
+            onNavigate={setLightboxIndex}
+            canEdit={canEditAttachment}
+            onSaveCaption={saveAttachmentCaption}
+          />
         )}
 
         <div className="modal-footer">

@@ -38,9 +38,9 @@ async function request(path, options = {}) {
   return res.json();
 }
 
-async function upload(path, file) {
+async function upload(path, files) {
   const formData = new FormData();
-  formData.append('file', file);
+  for (const file of files) formData.append('files', file);
   const res = await fetch(BASE + path, { method: 'POST', credentials: 'include', body: formData });
   if (res.status === 401) {
     const err = new Error('unauthenticated');
@@ -137,7 +137,9 @@ export const api = {
   updatePriority: (id, data) => request(`/priorities/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deletePriority: (id, reassignTo) => request(`/priorities/${id}${reassignTo ? `?reassign_to=${encodeURIComponent(reassignTo)}` : ''}`, { method: 'DELETE' }),
 
-  uploadAttachment: (taskId, file) => upload(`/tasks/${taskId}/attachments`, file),
+  uploadAttachments: (taskId, files) => upload(`/tasks/${taskId}/attachments`, files),
+  updateAttachment: (id, data) => request(`/attachments/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  reorderAttachments: (taskId, order) => request(`/tasks/${taskId}/attachments/reorder`, { method: 'PATCH', body: JSON.stringify({ order }) }),
   deleteAttachment: (id) => request(`/attachments/${id}`, { method: 'DELETE' }),
 
   listSections: (projectId) => request(`/sections?project_id=${projectId}`),

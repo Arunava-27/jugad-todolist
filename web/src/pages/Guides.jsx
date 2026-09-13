@@ -73,7 +73,7 @@ export default function Guides({ isOwnerOrAdmin }) {
               <p>Open a task and use the checklist inside its modal to break it into steps. Sub-tasks are lightweight — a title and a checkbox, no separate status/priority of their own — and stay tucked inside their parent rather than cluttering the main list.</p>
 
               <h3>Assignees &amp; attachments</h3>
-              <p>Assign a task to real teammates from the task modal — click their name to toggle them on or off (their domain, if they have one, shows right on the chip). Drop image attachments onto a task from the same modal; they show as thumbnails.</p>
+              <p>Assign a task to real teammates from the task modal — click their name to toggle them on or off (their domain, if they have one, shows right on the chip). Add image attachments from the same modal — select several at once, drag the thumbnails to reorder them, and click one to open it full-size with a download button and a caption. Anyone who can edit the task can upload or remove images; only whoever uploaded an image (or a manager+) can caption it.</p>
 
               <h3>Comments &amp; activity</h3>
               <p>Every task has an <strong>Activity</strong> tab alongside Details. It's one timeline, oldest first: your comments, plus a system-logged history of real changes — status, priority, due date, who got assigned or unassigned, completed/reopened. You can delete your own comments; the change history can't be edited, by anyone.</p>

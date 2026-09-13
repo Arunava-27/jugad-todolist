@@ -22,7 +22,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB per file
   fileFilter: (req, file, cb) => {
     if (!file.mimetype.startsWith('image/')) {
       return cb(new Error('Only image files are allowed'));
@@ -48,28 +48,44 @@ function canWrite(user, workspaceId) {
   return atLeast(roleFor(user, workspaceId), 'developer');
 }
 
+function cleanupFiles(files) {
+  for (const f of files || []) fs.unlink(f.path, () => {});
+}
+
 const router = Router();
 
 router.post('/tasks/:taskId/attachments', (req, res) => {
-  upload.single('file')(req, res, (err) => {
-    if (err) return res.status(400).json({ error: err.message });
+  upload.array('files', 8)(req, res, (err) => {
+    if (err) {
+      cleanupFiles(req.files);
+      return res.status(400).json({ error: err.message });
+    }
     const taskId = Number(req.params.taskId);
     const task = db.prepare('SELECT id, workspace_id FROM tasks WHERE id = ?').get(taskId);
     if (!task || !canAccessWorkspace(req.user, task.workspace_id)) {
-      if (req.file) fs.unlink(req.file.path, () => {});
+      cleanupFiles(req.files);
       return res.status(404).json({ error: 'Task not found' });
     }
     if (!canWrite(req.user, task.workspace_id)) {
-      if (req.file) fs.unlink(req.file.path, () => {});
+      cleanupFiles(req.files);
       return res.status(403).json({ error: 'Viewers have read-only access to this workspace' });
     }
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No file uploaded' });
 
-    const info = db.prepare(
-      'INSERT INTO attachments (task_id, filename, original_name, mime_type, size) VALUES (?, ?, ?, ?, ?)'
-    ).run(taskId, req.file.filename, req.file.originalname, req.file.mimetype, req.file.size);
-    const row = db.prepare('SELECT * FROM attachments WHERE id = ?').get(info.lastInsertRowid);
-    res.status(201).json({ ...row, url: attachmentUrl(row) });
+    const maxOrder = db.prepare('SELECT MAX(sort_order) m FROM attachments WHERE task_id = ?').get(taskId).m ?? -1;
+    const insert = db.prepare(
+      'INSERT INTO attachments (task_id, filename, original_name, mime_type, size, user_id, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    );
+    const created = req.files.map((file, idx) => {
+      const info = insert.run(taskId, file.filename, file.originalname, file.mimetype, file.size, req.user.id, maxOrder + 1 + idx);
+      const row = db.prepare(
+        `SELECT a.*, u.name as uploader_name FROM attachments a LEFT JOIN users u ON u.id = a.user_id WHERE a.id = ?`
+      ).get(info.lastInsertRowid);
+      return { ...row, url: attachmentUrl(row) };
+    });
+    // Always an array, even for one file — keeps the frontend from needing a
+    // single-vs-multi response-shape branch.
+    res.status(201).json(created);
   });
 });
 
@@ -78,7 +94,10 @@ router.get('/tasks/:taskId/attachments', (req, res) => {
   const task = db.prepare('SELECT id, workspace_id FROM tasks WHERE id = ?').get(taskId);
   if (!task || !canAccessWorkspace(req.user, task.workspace_id)) return res.status(404).json({ error: 'Task not found' });
 
-  const rows = db.prepare('SELECT * FROM attachments WHERE task_id = ? ORDER BY created_at').all(taskId);
+  const rows = db.prepare(
+    `SELECT a.*, u.name as uploader_name FROM attachments a LEFT JOIN users u ON u.id = a.user_id
+     WHERE a.task_id = ? ORDER BY a.sort_order, a.created_at`
+  ).all(taskId);
   res.json(rows.map((r) => ({ ...r, url: attachmentUrl(r) })));
 });
 
@@ -91,7 +110,64 @@ router.get('/attachments/:id/file', (req, res) => {
   if (!fs.existsSync(filePath)) return res.status(404).end();
   res.setHeader('Content-Type', row.mime_type || 'application/octet-stream');
   res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+  if (req.query.download === '1') {
+    // Strip quotes/newlines from the suggested filename — it's user-supplied
+    // (the original upload name) and goes straight into a response header.
+    const safeName = String(row.original_name || 'attachment').replace(/["\r\n]/g, '');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+  }
   res.sendFile(filePath);
+});
+
+// Caption edit — the uploader themselves, or a manager+, can annotate an
+// image; nobody else (and never a viewer, regardless of who uploaded it —
+// a demoted former-developer doesn't keep write access to their old work).
+router.patch('/attachments/:id', (req, res) => {
+  const row = db.prepare(
+    `SELECT a.*, t.workspace_id FROM attachments a JOIN tasks t ON t.id = a.task_id WHERE a.id = ?`
+  ).get(Number(req.params.id));
+  if (!row || !canAccessWorkspace(req.user, row.workspace_id)) return res.status(404).json({ error: 'Not found' });
+  if (!canWrite(req.user, row.workspace_id)) return res.status(403).json({ error: 'Viewers have read-only access to this workspace' });
+
+  const isUploader = row.user_id === req.user.id;
+  const isManager = atLeast(roleFor(req.user, row.workspace_id), 'manager');
+  if (!isUploader && !isManager) {
+    return res.status(403).json({ error: 'Only whoever uploaded this, or a manager, admin, or owner, can edit it' });
+  }
+
+  if ('caption' in (req.body || {})) {
+    const caption = String(req.body.caption || '').trim().slice(0, 500) || null;
+    db.prepare('UPDATE attachments SET caption = ? WHERE id = ?').run(caption, row.id);
+  }
+  const updated = db.prepare(
+    `SELECT a.*, u.name as uploader_name FROM attachments a LEFT JOIN users u ON u.id = a.user_id WHERE a.id = ?`
+  ).get(row.id);
+  res.json({ ...updated, url: attachmentUrl(updated) });
+});
+
+// Persists a new drag-to-reorder order for one task's attachment grid.
+router.patch('/tasks/:taskId/attachments/reorder', (req, res) => {
+  const taskId = Number(req.params.taskId);
+  const task = db.prepare('SELECT id, workspace_id FROM tasks WHERE id = ?').get(taskId);
+  if (!task || !canAccessWorkspace(req.user, task.workspace_id)) return res.status(404).json({ error: 'Task not found' });
+  if (!canWrite(req.user, task.workspace_id)) return res.status(403).json({ error: 'Viewers have read-only access to this workspace' });
+
+  const order = Array.isArray(req.body?.order) ? req.body.order.map(Number) : [];
+  if (!order.length) return res.status(400).json({ error: 'order is required' });
+
+  // Only ever reorder attachments that actually belong to this task — an id
+  // that doesn't is silently skipped rather than trusted wholesale.
+  const validIds = new Set(db.prepare('SELECT id FROM attachments WHERE task_id = ?').all(taskId).map((r) => r.id));
+  const updateOrder = db.prepare('UPDATE attachments SET sort_order = ? WHERE id = ? AND task_id = ?');
+  order.forEach((id, idx) => {
+    if (validIds.has(id)) updateOrder.run(idx, id, taskId);
+  });
+
+  const rows = db.prepare(
+    `SELECT a.*, u.name as uploader_name FROM attachments a LEFT JOIN users u ON u.id = a.user_id
+     WHERE a.task_id = ? ORDER BY a.sort_order, a.created_at`
+  ).all(taskId);
+  res.json(rows.map((r) => ({ ...r, url: attachmentUrl(r) })));
 });
 
 router.delete('/attachments/:id', (req, res) => {

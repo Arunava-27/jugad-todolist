@@ -192,6 +192,9 @@ CREATE TABLE IF NOT EXISTS attachments (
   original_name TEXT NOT NULL,
   mime_type TEXT,
   size INTEGER,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, -- who uploaded it; NULL for pre-2026-09 rows
+  caption TEXT,
+  sort_order REAL NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 

@@ -69,7 +69,10 @@ function hydrateTask(task) {
     `SELECT u.id, u.name, u.email FROM users u JOIN task_members tm ON tm.user_id = u.id WHERE tm.task_id = ? ORDER BY u.name COLLATE NOCASE`
   ).all(task.id);
   const attachments = db.prepare(
-    `SELECT id, original_name, mime_type, size, created_at FROM attachments WHERE task_id = ? ORDER BY created_at`
+    `SELECT a.id, a.original_name, a.mime_type, a.size, a.caption, a.sort_order, a.created_at,
+       a.user_id, u.name as uploader_name
+     FROM attachments a LEFT JOIN users u ON u.id = a.user_id
+     WHERE a.task_id = ? ORDER BY a.sort_order, a.created_at`
   ).all(task.id).map((a) => ({ ...a, url: `/api/attachments/${a.id}/file` }));
   const subtaskStats = db.prepare(
     `SELECT COUNT(*) total, COALESCE(SUM(is_completed), 0) completed FROM tasks WHERE parent_task_id = ?`

@@ -178,6 +178,13 @@ const PATHS = {
       <rect x="15" y="4.5" width="3.5" height="15.5" strokeLinejoin="round" />
     </>
   ),
+  download: (
+    <>
+      <path d="M12 3.5v11" />
+      <polyline points="7.5,10.5 12,15 16.5,10.5" strokeLinejoin="round" />
+      <path d="M4.5 16v3a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-3" />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = 17, filled = false, className = '', style }) {
