@@ -68,6 +68,42 @@ async function upload(path, files) {
   return res.json();
 }
 
+// Secrets' downloads are behind requireWorkspace (unlike attachments, which
+// are self-scoped and can use a plain <a href>) — a bare link can't carry
+// the X-Workspace-Id header, so this fetches the bytes with credentials +
+// that header and triggers a synthetic save via a throwaway object URL.
+async function downloadFile(path, filename) {
+  const headers = {};
+  if (activeWorkspaceId) headers['X-Workspace-Id'] = String(activeWorkspaceId);
+  const res = await fetch(BASE + path, { credentials: 'include', headers });
+  if (res.status === 401) {
+    const err = new Error('unauthenticated');
+    err.status = 401;
+    throw err;
+  }
+  if (!res.ok) {
+    let message = `Download failed: ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    const err = new Error(message);
+    err.status = res.status;
+    throw err;
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || 'download';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export const api = {
   listTokens: () => request('/tokens'),
   createToken: (data) => request('/tokens', { method: 'POST', body: JSON.stringify(data) }),
@@ -163,4 +199,31 @@ export const api = {
   deleteTeam: (id) => request(`/teams/${id}`, { method: 'DELETE' }),
   addTeamMember: (teamId, userId) => request(`/teams/${teamId}/members`, { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
   removeTeamMember: (teamId, userId) => request(`/teams/${teamId}/members/${userId}`, { method: 'DELETE' }),
+
+  listSecrets: (projectId) => request(`/secrets?project_id=${projectId}`),
+  createSecret: (data) => request('/secrets', { method: 'POST', body: JSON.stringify(data) }),
+  createFileSecret: (projectId, file, notes) => {
+    const formData = new FormData();
+    formData.append('project_id', String(projectId));
+    formData.append('file', file);
+    if (notes) formData.append('notes', notes);
+    const headers = {};
+    if (activeWorkspaceId) headers['X-Workspace-Id'] = String(activeWorkspaceId);
+    return fetch(BASE + '/secrets/files', { method: 'POST', credentials: 'include', headers, body: formData }).then(async (res) => {
+      if (!res.ok) {
+        let message = `Request failed: ${res.status}`;
+        try { const body = await res.json(); if (body?.error) message = body.error; } catch { /* ignore */ }
+        const err = new Error(message); err.status = res.status; throw err;
+      }
+      return res.json();
+    });
+  },
+  updateSecret: (id, data) => request(`/secrets/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteSecret: (id) => request(`/secrets/${id}`, { method: 'DELETE' }),
+  revealSecret: (id) => request(`/secrets/${id}/reveal`),
+  downloadSecret: (id, filename) => downloadFile(`/secrets/${id}/download`, filename),
+  listSecretShares: (id) => request(`/secrets/${id}/shares`),
+  shareSecret: (id, userId, canReshare) => request(`/secrets/${id}/shares`, { method: 'POST', body: JSON.stringify({ user_id: userId, can_reshare: !!canReshare }) }),
+  unshareSecret: (id, userId) => request(`/secrets/${id}/shares/${userId}`, { method: 'DELETE' }),
+  getSecretAccessLog: (id) => request(`/secrets/${id}/access-log`),
 };

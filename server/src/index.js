@@ -18,6 +18,7 @@ import statusRoutes from './routes/statuses.js';
 import priorityRoutes from './routes/priorities.js';
 import sectionRoutes from './routes/sections.js';
 import teamRoutes from './routes/teams.js';
+import secretRoutes from './routes/secrets.js';
 import tokenRoutes from './routes/tokens.js';
 import overviewRoutes from './routes/overview.js';
 import attachmentRoutes from './routes/attachments.js';
@@ -85,6 +86,11 @@ app.use('/api/statuses', requireAuth, requireWorkspace, statusRoutes);
 app.use('/api/priorities', requireAuth, requireWorkspace, priorityRoutes);
 app.use('/api/sections', requireAuth, requireWorkspace, sectionRoutes);
 app.use('/api/teams', requireAuth, requireWorkspace, teamRoutes);
+// Project-scoped, same not-nested-under-/api/projects pattern as teams above
+// (project_id passed as a query/body param instead of a URL segment) — this
+// sidesteps the exact prefix-shadowing hazard documented on the attachments
+// mount below, since /api/secrets shares no prefix with /api/projects at all.
+app.use('/api/secrets', requireAuth, requireWorkspace, secretRoutes);
 app.use('/api/overview', requireAuth, requireWorkspace, overviewRoutes);
 
 // The Claude/MCP connector — deliberately NOT under /api, and deliberately

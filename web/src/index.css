@@ -606,6 +606,24 @@ button.ghost { background: none; border: 1px solid var(--line); padding: 8px 14p
 .token-create-form button { background: var(--accent); color: var(--accent-ink); border: none; padding: 7px 14px; border-radius: var(--radius-sm); font-weight: 600; }
 .token-create-form button:disabled { opacity: .5; cursor: default; }
 
+/* ---------- Secrets (encrypted project credentials, ProjectOverview) ---------- */
+.secret-row-wrap { display: flex; flex-direction: column; }
+.secret-row { align-items: flex-start; }
+.secret-lock-icon { color: var(--ink-soft); margin-top: 2px; flex-shrink: 0; }
+.secret-kind-badge {
+  font-size: 9.5px; font-weight: 600; letter-spacing: .03em; padding: 1px 6px; border-radius: 999px;
+  background: var(--panel-sunk); color: var(--ink-soft);
+}
+.secret-kind-file { background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); }
+.secret-row-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.secret-share-panel {
+  border: 1px dashed var(--line); border-top: none; border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  padding: 10px 10px 10px 33px; margin: -6px 0 0; background: var(--panel-sunk);
+}
+.secret-share-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 4px 0; }
+.secret-share-row span:first-child { flex: 1; }
+.secret-log-entry { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; padding: 4px 0; }
+
 /* ---------- Stakeholder view (project-scoped, read-only lane) ---------- */
 .stakeholder-shell { min-height: 100vh; display: flex; flex-direction: column; background: var(--paper); color: var(--ink); }
 .stakeholder-header {

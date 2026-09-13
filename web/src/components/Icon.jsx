@@ -185,6 +185,18 @@ const PATHS = {
       <path d="M4.5 16v3a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-3" />
     </>
   ),
+  lock: (
+    <>
+      <rect x="5" y="11" width="14" height="9.5" rx="2" />
+      <path d="M8 11V7.5a4 4 0 0 1 8 0V11" />
+    </>
+  ),
+  copy: (
+    <>
+      <rect x="9" y="9" width="11.5" height="11.5" rx="1.8" />
+      <path d="M14.5 9V5.8a1.8 1.8 0 0 0-1.8-1.8H4.8A1.8 1.8 0 0 0 3 5.8v8.9a1.8 1.8 0 0 0 1.8 1.8H9" />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = 17, filled = false, className = '', style }) {

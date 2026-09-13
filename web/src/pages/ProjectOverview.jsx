@@ -4,13 +4,14 @@ import { colorForPerson, initials } from '../lib/format.js';
 import { PROJECT_STAGES } from '../lib/projectStages.js';
 import ProjectStakeholders from '../components/ProjectStakeholders.jsx';
 import ProjectTeams from '../components/ProjectTeams.jsx';
+import ProjectSecrets from '../components/ProjectSecrets.jsx';
 
 // A project's home screen — the "front door" you land on when you open a
 // project, before List/Board. Everything about the project itself (stage,
 // description, timeline, progress, who's on it, who's watching it as a
 // stakeholder) lives here instead of being scattered across two Settings
 // tabs, so a project reads as a place, not just a filtered task list.
-export default function ProjectOverview({ project, members, readOnly, onProjectChanged }) {
+export default function ProjectOverview({ project, members, readOnly, isViewer, onProjectChanged }) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [description, setDescription] = useState(project.description || '');
@@ -88,6 +89,15 @@ export default function ProjectOverview({ project, members, readOnly, onProjectC
               </div>
             )}
           </div>
+
+          {!isViewer && (
+            <div className="overview-field">
+              <span className="settings-hint" style={{ margin: '0 0 6px' }}>
+                Secrets — encrypted credentials and small files, visible only to a manager or whoever it's shared with
+              </span>
+              <ProjectSecrets projectId={project.id} members={members} canManage={!readOnly} />
+            </div>
+          )}
 
           <div className="overview-field">
             <span className="settings-hint" style={{ margin: '0 0 6px' }}>

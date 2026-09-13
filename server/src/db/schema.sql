@@ -209,6 +209,61 @@ CREATE TABLE IF NOT EXISTS team_members (
   PRIMARY KEY (team_id, user_id)
 );
 
+-- A project-scoped secret — a key/value credential (e.g. an AWS access key)
+-- or a small file (e.g. a .pem/.json credentials file) — encrypted at rest
+-- with AES-256-GCM (see lib/secretCrypto.js) and visible only to a manager+
+-- or whoever it's explicitly shared with (see project_secret_shares below).
+-- Never both kinds at once: kind='kv' uses key_name/value_encrypted, kind='file'
+-- uses file_name/file_path/file_size/mime_type; the other group stays NULL.
+CREATE TABLE IF NOT EXISTS project_secrets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL, -- 'kv' | 'file'
+  key_name TEXT,
+  value_encrypted TEXT, -- base64(iv || authTag || ciphertext)
+  file_name TEXT,
+  file_path TEXT, -- filename under data/secrets/, not a full path (same convention as attachments.filename)
+  file_size INTEGER,
+  mime_type TEXT,
+  notes TEXT,
+  created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_project_secrets_project ON project_secrets(project_id);
+
+-- Grants one specific person access to reveal/download one specific secret.
+-- can_reshare lets that person manage (add/remove) further shares of THIS
+-- secret only — never see/change the value, never delete it, never touch
+-- any other secret. Absence of a row here (and not being manager+) means no
+-- access at all — see routes/secrets.js's "404, not 403" handling.
+CREATE TABLE IF NOT EXISTS project_secret_shares (
+  secret_id INTEGER NOT NULL REFERENCES project_secrets(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  can_reshare INTEGER NOT NULL DEFAULT 0,
+  shared_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  shared_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  PRIMARY KEY (secret_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_secret_shares_user ON project_secret_shares(user_id);
+
+-- Immutable audit trail — who viewed/downloaded/created/updated/deleted/
+-- shared/unshared a secret, and when. secret_id is SET NULL (never CASCADE)
+-- on delete: removing a secret must never remove its own history of who
+-- touched it. secret_label snapshots key_name/file_name at the time of the
+-- action, since the secret itself (and its name) may not exist anymore.
+CREATE TABLE IF NOT EXISTS project_secret_access_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  secret_id INTEGER REFERENCES project_secrets(id) ON DELETE SET NULL,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  secret_label TEXT NOT NULL,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL, -- 'viewed' | 'downloaded' | 'created' | 'updated' | 'deleted' | 'shared' | 'unshared'
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_secret_access_log_project ON project_secret_access_log(project_id);
+CREATE INDEX IF NOT EXISTS idx_secret_access_log_secret ON project_secret_access_log(secret_id);
+
 -- Named groupings of tasks within a project's List view (e.g. "Backlog",
 -- "In Review") — independent of a task's status/board column.
 CREATE TABLE IF NOT EXISTS sections (

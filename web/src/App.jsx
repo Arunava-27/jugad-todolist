@@ -415,6 +415,7 @@ export default function App() {
               project={currentProject}
               members={members}
               readOnly={!canManage}
+              isViewer={isViewer}
               onProjectChanged={refreshLookups}
             />
           )
