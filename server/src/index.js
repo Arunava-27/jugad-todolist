@@ -52,6 +52,16 @@ app.use('/api/admin', requireAuth, requireAdmin, adminRoutes);
 // no X-Workspace-Id header at all (often no workspace membership); it does
 // its own per-project authorization (see projectSummary.js).
 app.use('/api/project-summary', requireAuth, projectSummaryRoutes);
+// Mounted before /api/tasks deliberately: attachmentRoutes owns paths like
+// /api/tasks/:taskId/attachments, and Express's app.use(prefix, mw...) runs
+// every middleware for ANY path under that prefix — including ones the
+// router itself doesn't define — regardless of registration order within
+// the router. If /api/tasks (with its requireWorkspace gate) were mounted
+// first, it would intercept /api/tasks/:taskId/attachments requests before
+// they ever reached this self-scoped router below, and 400 with "Missing or
+// invalid X-Workspace-Id" even though attachments don't need that header at
+// all (this actually happened — a real bug, not hypothetical; see git log).
+app.use('/api', requireAuth, attachmentRoutes); // self-scopes per attachment/task, see routes/attachments.js
 app.use('/api/projects', requireAuth, requireWorkspace, projectRoutes);
 app.use('/api/tasks', requireAuth, requireWorkspace, taskRoutes);
 app.use('/api/labels', requireAuth, requireWorkspace, labelRoutes);
@@ -60,7 +70,6 @@ app.use('/api/priorities', requireAuth, requireWorkspace, priorityRoutes);
 app.use('/api/sections', requireAuth, requireWorkspace, sectionRoutes);
 app.use('/api/teams', requireAuth, requireWorkspace, teamRoutes);
 app.use('/api/overview', requireAuth, requireWorkspace, overviewRoutes);
-app.use('/api', requireAuth, attachmentRoutes); // self-scopes per attachment/task, see routes/attachments.js
 
 // Serve the built frontend (web/dist) in production / when present.
 const webDist = path.resolve(__dirname, '../../web/dist');

@@ -41,7 +41,13 @@ async function request(path, options = {}) {
 async function upload(path, files) {
   const formData = new FormData();
   for (const file of files) formData.append('files', file);
-  const res = await fetch(BASE + path, { method: 'POST', credentials: 'include', body: formData });
+  // Not strictly required by the attachments routes themselves (self-scoped,
+  // see server/src/index.js's mount-order comment for why) — sent anyway so
+  // this doesn't silently break again if a route ever ends up depending on
+  // it, same as every other request() call already does.
+  const headers = {};
+  if (activeWorkspaceId) headers['X-Workspace-Id'] = String(activeWorkspaceId);
+  const res = await fetch(BASE + path, { method: 'POST', credentials: 'include', headers, body: formData });
   if (res.status === 401) {
     const err = new Error('unauthenticated');
     err.status = 401;
