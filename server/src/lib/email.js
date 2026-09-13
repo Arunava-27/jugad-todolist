@@ -7,9 +7,10 @@
 // just doesn't go out. That keeps local dev and a not-yet-configured
 // production deploy from hard-failing the invite flow.
 
+import { APP_URL } from './appUrl.js';
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM || 'Punchlist <onboarding@resend.dev>';
-const APP_URL = process.env.APP_URL || `https://${process.env.DOMAIN || 'localhost:5173'}`;
 
 export async function sendInviteEmail({ to, inviterName, workspaceName, token }) {
   const link = `${APP_URL}/?invite=${token}`;

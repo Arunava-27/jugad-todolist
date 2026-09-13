@@ -39,6 +39,20 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
+-- An app that's registered itself to connect to Punchlist via OAuth (Phase
+-- 9) — e.g. "Claude". Created automatically the first time that app's
+-- client performs Dynamic Client Registration (RFC 7591, see routes/oauth.js's
+-- POST /oauth/register); nobody approves this by hand. Punchlist only ever
+-- runs "public" OAuth clients (Authorization Code + PKCE, no client secret)
+-- since none of the apps connecting to it (Claude Desktop, claude.ai, Claude
+-- Code) has anywhere secret to keep one — id is the client_id itself.
+CREATE TABLE IF NOT EXISTS oauth_clients (
+  id TEXT PRIMARY KEY,
+  client_name TEXT NOT NULL,
+  redirect_uris TEXT NOT NULL, -- JSON array; an /oauth/authorize or /oauth/token request must match one exactly
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
 -- A personal, revocable credential that lets a script or agent (e.g. a
 -- user's own Claude, via the MCP connector) act AS this specific person,
 -- through the exact same roleFor()/atLeast() checks their normal session
@@ -46,7 +60,10 @@ CREATE TABLE IF NOT EXISTS users (
 -- is bcrypt, same as users.password_hash; the raw token is shown exactly
 -- once, at creation, and can never be recovered afterward — only
 -- token_prefix (stored in the clear) is kept, so the UI can show
--- "pat_ab12••••" without ever re-deriving the secret.
+-- "pat_ab12••••" without ever re-deriving the secret. A row here is either
+-- created by hand (oauth_client_id NULL) or minted at the end of a
+-- completed OAuth sign-in (Phase 9, oauth_client_id set) — same table,
+-- same format, same validation path either way; see lib/personalAccessTokens.js.
 CREATE TABLE IF NOT EXISTS personal_access_tokens (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -56,10 +73,53 @@ CREATE TABLE IF NOT EXISTS personal_access_tokens (
   last_used_at TEXT,
   expires_at TEXT, -- NULL = no expiry
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-  revoked_at TEXT
+  revoked_at TEXT,
+  oauth_client_id TEXT REFERENCES oauth_clients(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_pat_user ON personal_access_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_pat_prefix ON personal_access_tokens(token_prefix);
+-- NOTE: the index on oauth_client_id is created in db/index.js instead, same
+-- reasoning as the workspace_id-dependent indexes at the bottom of this file
+-- — on an existing (pre-Phase-9) database this CREATE TABLE IF NOT EXISTS is
+-- a no-op (the table already exists without that column), so indexing it
+-- here would fail until the guarded ALTER in db/index.js actually adds it.
+
+-- A short-lived, single-use authorization code (RFC 6749 §4.1 + PKCE, RFC
+-- 7636) — issued when a signed-in person clicks Allow on the consent screen,
+-- redeemed once at POST /oauth/token for a token pair, then marked used_at
+-- so it can never be redeemed again (a reused code is a replay signal).
+CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
+  code TEXT PRIMARY KEY,
+  client_id TEXT NOT NULL REFERENCES oauth_clients(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  redirect_uri TEXT NOT NULL,
+  code_challenge TEXT NOT NULL,
+  code_challenge_method TEXT NOT NULL DEFAULT 'S256',
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_oauth_codes_client ON oauth_authorization_codes(client_id);
+
+-- A long-lived OAuth refresh token, bcrypt-hashed the same way as a PAT
+-- (token_prefix/token_hash — see lib/personalAccessTokens.js's TOKEN_PREFIX_LEN).
+-- Rotated on every use: redeeming one revokes it and the personal_access_tokens
+-- row it's paired with (pat_id), then issues a fresh pair — so a stolen
+-- refresh token that gets replayed after the legitimate client already
+-- rotated it simply fails, which is the theft-detection signal rotation is
+-- meant to provide.
+CREATE TABLE IF NOT EXISTS oauth_refresh_tokens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  token_prefix TEXT NOT NULL,
+  token_hash TEXT NOT NULL,
+  client_id TEXT NOT NULL REFERENCES oauth_clients(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pat_id INTEGER REFERENCES personal_access_tokens(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  revoked_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_oauth_refresh_user ON oauth_refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_refresh_prefix ON oauth_refresh_tokens(token_prefix);
 
 CREATE TABLE IF NOT EXISTS workspaces (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import authRoutes from './routes/auth.js';
+import oauthRoutes from './routes/oauth.js';
 import workspaceRoutes from './routes/workspaces.js';
 import inviteRoutes from './routes/invites.js';
 import adminRoutes from './routes/admin.js';
@@ -23,6 +24,7 @@ import attachmentRoutes from './routes/attachments.js';
 import { requireAuth, requireAdmin, requireWorkspace } from './middleware/auth.js';
 import { createMcpServer } from './mcp/server.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { APP_URL } from './lib/appUrl.js';
 import './db/index.js'; // ensure schema is applied on boot
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -44,6 +46,13 @@ app.use(cookieSession({
 }));
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
+
+// The OAuth authorization server (Phase 9) — deliberately mounted at the
+// root, unauthenticated: these routes (discovery docs, Dynamic Client
+// Registration, the authorize/token endpoints) are how a Claude client gets
+// *to* an authenticated state, so none of them can sit behind requireAuth.
+// See routes/oauth.js for the full design.
+app.use('/', oauthRoutes);
 
 app.use('/api/auth', authRoutes);
 // Not behind requireAuth: GET /api/invites/:token must work for a visitor
@@ -87,7 +96,20 @@ app.use('/api/overview', requireAuth, requireWorkspace, overviewRoutes);
 // pattern the SDK's own stateless example uses, since each request may
 // belong to a different person and there's nothing here that needs
 // server-initiated push between calls.
-app.post('/mcp', requireAuth, async (req, res) => {
+//
+// withResourceMetadata sets WWW-Authenticate ahead of requireAuth so that,
+// if requireAuth does end up sending its own 401, the header is already on
+// the response (Express doesn't clear headers already set once a later
+// handler calls res.status().json()) — this is what lets an MCP client that
+// probes /mcp with no token yet auto-discover the OAuth flow below (see
+// routes/oauth.js) instead of only ever offering the manual "Add header"
+// path. Deliberately doesn't touch middleware/auth.js itself.
+function withResourceMetadata(req, res, next) {
+  res.set('WWW-Authenticate', `Bearer resource_metadata="${APP_URL}/.well-known/oauth-protected-resource"`);
+  next();
+}
+
+app.post('/mcp', withResourceMetadata, requireAuth, async (req, res) => {
   try {
     const server = createMcpServer(req.user);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
@@ -103,10 +125,10 @@ app.post('/mcp', requireAuth, async (req, res) => {
 });
 // No session to resume or close in stateless mode — same 405 shape the
 // SDK's own stateless example returns for these.
-app.get('/mcp', requireAuth, (req, res) => {
+app.get('/mcp', withResourceMetadata, requireAuth, (req, res) => {
   res.status(405).json({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed.' }, id: null });
 });
-app.delete('/mcp', requireAuth, (req, res) => {
+app.delete('/mcp', withResourceMetadata, requireAuth, (req, res) => {
   res.status(405).json({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed.' }, id: null });
 });
 

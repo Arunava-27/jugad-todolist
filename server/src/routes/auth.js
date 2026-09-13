@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import db from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
+import { verifyCredentials } from '../lib/credentials.js';
 
 const router = Router();
 
@@ -101,14 +102,8 @@ router.post('/register', (req, res) => {
 });
 
 router.post('/login', loginLimiter, (req, res) => {
-  const { email, password } = req.body || {};
-  const cleanEmail = String(email || '').trim().toLowerCase();
-  if (!cleanEmail || !password) return res.status(400).json({ error: 'Email and password required' });
-
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail);
-  if (!user || !user.is_active || !bcrypt.compareSync(password, user.password_hash)) {
-    return res.status(401).json({ error: 'Invalid email or password' });
-  }
+  const user = verifyCredentials(req.body?.email, req.body?.password);
+  if (!user) return res.status(401).json({ error: 'Invalid email or password' });
 
   req.session.userId = user.id;
   res.json({ user: publicUser(user), workspaces: myWorkspaces(user.id), stakeholderProjects: myStakeholderProjects(user.id) });

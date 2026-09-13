@@ -580,6 +580,8 @@ button.ghost { background: none; border: 1px solid var(--line); padding: 8px 14p
 .team-add-member select { flex: 1; }
 
 /* ---------- Connectors (personal access tokens, Settings) ---------- */
+.settings-subheading { font-size: 12px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .03em; margin: 18px 0 8px; }
+.settings-subheading:first-child { margin-top: 0; }
 .mcp-url-block { margin-bottom: 16px; }
 .token-reveal {
   border: 1px solid var(--accent); background: var(--accent-soft); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px;

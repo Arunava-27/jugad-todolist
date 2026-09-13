@@ -165,19 +165,23 @@ export default function Guides({ isOwnerOrAdmin }) {
 
           {topic === 'Connectors' && (
             <>
-              <h3>Personal access tokens</h3>
-              <p>Settings → Connectors. A token lets a script — or your own Claude — act as you, through your own role and permissions, nothing more. It can't do anything you personally can't do, and it never lets whoever holds it act as anyone else.</p>
+              <h3>Connect Claude to Punchlist</h3>
+              <p>Settings → Connectors, copy the server URL shown there, and add it as a custom connector in Claude Desktop, Claude Code, or claude.ai. Choose <strong>Sign in</strong> — it opens Punchlist's own login, you approve access, and you're connected. No token to generate or paste.</p>
+              <p>Once connected, Claude can see and work <strong>your own</strong> assigned tasks: list them, read one's full detail, change its status, self-assign or unassign, comment, and flag a blocker.</p>
+              <p>It's bound to your role the same as if you were clicking around yourself — it can't reassign a task to someone else, delete a task, or touch anyone else's work. If something looks blocked on another person or looks like a scheduling conflict, it logs a blocker or leaves a comment explaining it rather than acting on their behalf.</p>
+              <p>A blocker shows up on the task's Activity tab with a red "Blocker" tag, same timeline as comments — and like a comment, only whoever logged it can delete it.</p>
+
+              <h4>Disconnecting an app</h4>
+              <p>Signed-in connectors show up under "Authorized apps" on the Connectors screen — Disconnect there revokes its access immediately, same as revoking a token.</p>
+
+              <h3 style={{ marginTop: 24 }}>Personal access tokens</h3>
+              <p>A fallback for a client that doesn't offer "Sign in" yet. A token lets a script — or your own Claude — act as you, through your own role and permissions, nothing more. It can't do anything you personally can't do, and it never lets whoever holds it act as anyone else.</p>
 
               <h4>Creating one</h4>
               <p>Give it a name that says what it's for (e.g. "Claude Desktop"), pick how long it should last, and create it. The full token is shown <strong>exactly once</strong> — copy it immediately, since Punchlist never stores it in a form it can show you again. If you lose it, revoke it and create a new one.</p>
 
               <h4>Revoking one</h4>
               <p>Any active token can be revoked instantly from the same screen — whatever was using it stops working right away. Do this immediately if a token is ever exposed.</p>
-
-              <h3 style={{ marginTop: 24 }}>Connect Claude to Punchlist</h3>
-              <p>Add Punchlist as a custom connector — Claude Desktop, Claude Code, or claude.ai — using the server URL shown on the Connectors screen and a token as the Bearer credential. Once connected, Claude can see and work <strong>your own</strong> assigned tasks: list them, read one's full detail, change its status, self-assign or unassign, comment, and flag a blocker.</p>
-              <p>It's bound to your role the same as if you were clicking around yourself — it can't reassign a task to someone else, delete a task, or touch anyone else's work. If something looks blocked on another person or looks like a scheduling conflict, it logs a blocker or leaves a comment explaining it rather than acting on their behalf.</p>
-              <p>A blocker shows up on the task's Activity tab with a red "Blocker" tag, same timeline as comments — and like a comment, only whoever logged it can delete it.</p>
             </>
           )}
 

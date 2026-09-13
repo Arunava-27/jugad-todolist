@@ -264,6 +264,19 @@ if (!hasColumn('attachments', 'sort_order')) {
 }
 db.exec('CREATE INDEX IF NOT EXISTS idx_attachments_user ON attachments(user_id)');
 
+// --- OAuth authorization server (Phase 9) ---
+// oauth_clients/oauth_authorization_codes/oauth_refresh_tokens are all
+// brand-new tables, so schema.sql's CREATE TABLE IF NOT EXISTS already
+// covers them on both a fresh install and an upgrade of an existing one —
+// only this column on the pre-existing personal_access_tokens table needs a
+// guarded ALTER. It tags which oauth_clients row minted a token (NULL for
+// every token created by hand, before or after this migration), letting the
+// UI group "Authorized apps" separately from self-created tokens.
+if (!hasColumn('personal_access_tokens', 'oauth_client_id')) {
+  db.exec('ALTER TABLE personal_access_tokens ADD COLUMN oauth_client_id TEXT REFERENCES oauth_clients(id) ON DELETE SET NULL');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_pat_oauth_client ON personal_access_tokens(oauth_client_id)');
+}
+
 // Now that every table definitely has workspace_id (and correct FK text),
 // it's safe to index it and turn foreign key enforcement back on.
 db.exec(`

@@ -21,6 +21,26 @@ function formatDate(iso) {
 // self-service: this manages only the current account's own tokens.
 const MCP_URL = typeof window !== 'undefined' ? `${window.location.origin}/mcp` : '/mcp';
 
+// Groups every token an OAuth sign-in minted (Phase 9) by which app it's
+// for, newest first — a person who signs in once still sees one clean
+// "Authorized apps" row, not a growing list of individual pat_/rtk_ tokens
+// as the connector refreshes over time.
+function groupOAuthApps(tokens) {
+  const byClient = new Map();
+  for (const t of tokens) {
+    if (!t.oauth_client_id) continue;
+    if (!byClient.has(t.oauth_client_id)) {
+      byClient.set(t.oauth_client_id, { clientId: t.oauth_client_id, name: t.oauth_client_name || 'Unknown app', tokens: [] });
+    }
+    byClient.get(t.oauth_client_id).tokens.push(t);
+  }
+  return [...byClient.values()].sort((a, b) => {
+    const aLatest = a.tokens[0]?.created_at || '';
+    const bLatest = b.tokens[0]?.created_at || '';
+    return bLatest.localeCompare(aLatest);
+  });
+}
+
 export default function ConnectorTokens() {
   const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +56,9 @@ export default function ConnectorTokens() {
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  const oauthApps = groupOAuthApps(tokens);
+  const manualTokens = tokens.filter((t) => !t.oauth_client_id);
 
   async function submitCreate(e) {
     e.preventDefault();
@@ -76,6 +99,20 @@ export default function ConnectorTokens() {
     }
   }
 
+  // Every token an OAuth sign-in ever minted for a given app, revoked at
+  // once — nicer than making someone hunt down each individual token a
+  // connector accumulated across sign-ins/refreshes to fully disconnect it.
+  async function revokeApp(app) {
+    const ok = await confirmDialog(`Disconnect "${app.name}"? It will lose access to your Punchlist account immediately.`, { title: 'Disconnect app', danger: true });
+    if (!ok) return;
+    try {
+      await Promise.all(app.tokens.filter((t) => t.status === 'active').map((t) => api.revokeToken(t.id)));
+      refresh();
+    } catch (err) {
+      alertDialog(err.message || 'Could not disconnect app');
+    }
+  }
+
   async function copyUrl() {
     try {
       await navigator.clipboard.writeText(MCP_URL);
@@ -89,7 +126,9 @@ export default function ConnectorTokens() {
   return (
     <div>
       <div className="mcp-url-block">
-        <div className="settings-hint" style={{ margin: '0 0 4px' }}>Server URL — add this as a custom connector in Claude Desktop, Claude Code, or claude.ai, using a token below as the Bearer credential</div>
+        <div className="settings-hint" style={{ margin: '0 0 4px' }}>
+          Server URL — paste this into Claude Desktop, Claude Code, or claude.ai as a custom connector and choose <strong>Sign in</strong>; it'll ask you to log into Punchlist and approve access, no token to copy. A manual token below is only needed as a fallback for a client that doesn't offer sign-in.
+        </div>
         <div className="token-reveal-value">
           <code>{MCP_URL}</code>
           <button type="button" onClick={copyUrl}>{urlCopied ? 'Copied' : 'Copy'}</button>
@@ -113,28 +152,59 @@ export default function ConnectorTokens() {
       {loading ? (
         <p className="settings-hint">Loading…</p>
       ) : (
-        <div className="settings-list">
-          {tokens.length === 0 && <p className="settings-hint">No tokens yet — create one below to let a script or your own Claude act as you.</p>}
-          {tokens.map((t) => (
-            <div className={`settings-row token-row token-row-${t.status}`} key={t.id}>
-              <div style={{ flex: 1 }}>
-                <div className="token-row-name">
-                  {t.name}
-                  <span className={`token-status-chip token-status-${t.status}`}>{t.status}</span>
-                </div>
-                <div className="settings-hint" style={{ margin: '2px 0 0' }}>
-                  <code>{t.token_prefix}••••</code>
-                  {' · created '}{formatDate(t.created_at)}
-                  {t.expires_at && `, expires ${formatDate(t.expires_at)}`}
-                  {t.last_used_at ? `, last used ${formatDate(t.last_used_at)}` : ', never used'}
-                </div>
+        <>
+          {oauthApps.length > 0 && (
+            <>
+              <h3 className="settings-subheading">Authorized apps</h3>
+              <div className="settings-list">
+                {oauthApps.map((app) => {
+                  const active = app.tokens.find((t) => t.status === 'active');
+                  return (
+                    <div className={`settings-row token-row token-row-${active ? 'active' : 'revoked'}`} key={app.clientId}>
+                      <div style={{ flex: 1 }}>
+                        <div className="token-row-name">
+                          {app.name}
+                          <span className={`token-status-chip token-status-${active ? 'active' : 'revoked'}`}>{active ? 'connected' : 'disconnected'}</span>
+                        </div>
+                        <div className="settings-hint" style={{ margin: '2px 0 0' }}>
+                          Signed in {formatDate(app.tokens[app.tokens.length - 1].created_at)}
+                          {active?.last_used_at ? `, last used ${formatDate(active.last_used_at)}` : ''}
+                        </div>
+                      </div>
+                      {active && (
+                        <button className="icon-btn danger-hover" onClick={() => revokeApp(app)} title="Disconnect">Disconnect</button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              {t.status === 'active' && (
-                <button className="icon-btn danger-hover" onClick={() => revoke(t)} title="Revoke">Revoke</button>
-              )}
-            </div>
-          ))}
-        </div>
+            </>
+          )}
+
+          <h3 className="settings-subheading">Personal access tokens</h3>
+          <div className="settings-list">
+            {manualTokens.length === 0 && <p className="settings-hint">No tokens yet — create one below to let a script act as you (or use "Sign in" from a Claude connector's own settings instead of a manual token).</p>}
+            {manualTokens.map((t) => (
+              <div className={`settings-row token-row token-row-${t.status}`} key={t.id}>
+                <div style={{ flex: 1 }}>
+                  <div className="token-row-name">
+                    {t.name}
+                    <span className={`token-status-chip token-status-${t.status}`}>{t.status}</span>
+                  </div>
+                  <div className="settings-hint" style={{ margin: '2px 0 0' }}>
+                    <code>{t.token_prefix}••••</code>
+                    {' · created '}{formatDate(t.created_at)}
+                    {t.expires_at && `, expires ${formatDate(t.expires_at)}`}
+                    {t.last_used_at ? `, last used ${formatDate(t.last_used_at)}` : ', never used'}
+                  </div>
+                </div>
+                {t.status === 'active' && (
+                  <button className="icon-btn danger-hover" onClick={() => revoke(t)} title="Revoke">Revoke</button>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       <form className="token-create-form" onSubmit={submitCreate}>
