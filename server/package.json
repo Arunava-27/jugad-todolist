@@ -10,12 +10,13 @@
     "import-notion": "node ../scripts/import-notion.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.3.0",
     "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.3.0",
     "cookie-session": "^2.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.7.0",
     "multer": "^2.0.0"
   }
 }

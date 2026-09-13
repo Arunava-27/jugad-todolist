@@ -17,6 +17,7 @@ import statusRoutes from './routes/statuses.js';
 import priorityRoutes from './routes/priorities.js';
 import sectionRoutes from './routes/sections.js';
 import teamRoutes from './routes/teams.js';
+import tokenRoutes from './routes/tokens.js';
 import overviewRoutes from './routes/overview.js';
 import attachmentRoutes from './routes/attachments.js';
 import { requireAuth, requireAdmin, requireWorkspace } from './middleware/auth.js';
@@ -47,6 +48,10 @@ app.use('/api/auth', authRoutes);
 // who isn't signed in yet; the POST .../accept route requires auth itself.
 app.use('/api/invites', inviteRoutes);
 app.use('/api/workspaces', requireAuth, workspaceRoutes);
+// Account-scoped, not workspace-scoped — a personal access token belongs to
+// a person, not a workspace (they may belong to several). Self-service, no
+// admin gate: see routes/tokens.js.
+app.use('/api/tokens', requireAuth, tokenRoutes);
 app.use('/api/admin', requireAuth, requireAdmin, adminRoutes);
 // Deliberately NOT behind requireWorkspace — a stakeholder reaches this with
 // no X-Workspace-Id header at all (often no workspace membership); it does

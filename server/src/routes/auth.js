@@ -1,9 +1,23 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import db from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
+
+// Every login attempt here is either a real success or a genuinely worth-
+// throttling failure (wrong password, unknown email) — unlike a general
+// app route, there's no ordinary-use case that should be hammering this one
+// dozens of times a minute, so a broad per-IP limit is safe here in a way it
+// wouldn't be for most other routes.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts — try again later.' },
+});
 
 function publicUser(user) {
   return { id: user.id, email: user.email, name: user.name, role: user.role, organizationId: user.organization_id };
@@ -86,7 +100,7 @@ router.post('/register', (req, res) => {
   res.status(201).json({ user: publicUser(user), workspaces: myWorkspaces(info.lastInsertRowid), stakeholderProjects: myStakeholderProjects(info.lastInsertRowid) });
 });
 
-router.post('/login', (req, res) => {
+router.post('/login', loginLimiter, (req, res) => {
   const { email, password } = req.body || {};
   const cleanEmail = String(email || '').trim().toLowerCase();
   if (!cleanEmail || !password) return res.status(400).json({ error: 'Email and password required' });

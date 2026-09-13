@@ -39,6 +39,28 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
+-- A personal, revocable credential that lets a script or agent (e.g. a
+-- user's own Claude, via the MCP connector) act AS this specific person,
+-- through the exact same roleFor()/atLeast() checks their normal session
+-- already goes through — see middleware/auth.js's requireAuth. token_hash
+-- is bcrypt, same as users.password_hash; the raw token is shown exactly
+-- once, at creation, and can never be recovered afterward — only
+-- token_prefix (stored in the clear) is kept, so the UI can show
+-- "pat_ab12••••" without ever re-deriving the secret.
+CREATE TABLE IF NOT EXISTS personal_access_tokens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  token_prefix TEXT NOT NULL,
+  token_hash TEXT NOT NULL,
+  last_used_at TEXT,
+  expires_at TEXT, -- NULL = no expiry
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  revoked_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pat_user ON personal_access_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_pat_prefix ON personal_access_tokens(token_prefix);
+
 CREATE TABLE IF NOT EXISTS workspaces (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   organization_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,

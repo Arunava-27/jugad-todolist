@@ -69,6 +69,10 @@ async function upload(path, files) {
 }
 
 export const api = {
+  listTokens: () => request('/tokens'),
+  createToken: (data) => request('/tokens', { method: 'POST', body: JSON.stringify(data) }),
+  revokeToken: (id) => request(`/tokens/${id}`, { method: 'DELETE' }),
+
   me: () => request('/auth/me'),
   register: (email, name, password, { inviteToken, organizationName } = {}) =>
     request('/auth/register', { method: 'POST', body: JSON.stringify({ email, name, password, inviteToken, organizationName }) }),

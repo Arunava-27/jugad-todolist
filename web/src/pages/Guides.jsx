@@ -7,6 +7,7 @@ const TOPICS = [
   'Customizing your workflow',
   'People & roles',
   'Stakeholders',
+  'Connectors',
   'Admin',
 ];
 
@@ -159,6 +160,19 @@ export default function Guides({ isOwnerOrAdmin }) {
 
               <h4>What a stakeholder sees</h4>
               <p>Signing in takes them straight to a simple read-only dashboard: project name, current stage, timeline, a completion bar, a breakdown by status, and who's on the team — nothing more.</p>
+            </>
+          )}
+
+          {topic === 'Connectors' && (
+            <>
+              <h3>Personal access tokens</h3>
+              <p>Settings → Connectors. A token lets a script — or your own Claude — act as you, through your own role and permissions, nothing more. It can't do anything you personally can't do, and it never lets whoever holds it act as anyone else.</p>
+
+              <h4>Creating one</h4>
+              <p>Give it a name that says what it's for (e.g. "Claude Desktop"), pick how long it should last, and create it. The full token is shown <strong>exactly once</strong> — copy it immediately, since Punchlist never stores it in a form it can show you again. If you lose it, revoke it and create a new one.</p>
+
+              <h4>Revoking one</h4>
+              <p>Any active token can be revoked instantly from the same screen — whatever was using it stops working right away. Do this immediately if a token is ever exposed.</p>
             </>
           )}
 
