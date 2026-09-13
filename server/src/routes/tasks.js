@@ -423,10 +423,21 @@ router.delete('/:id/activity/:activityId', (req, res) => {
   if (!task) return;
   const entry = db.prepare('SELECT * FROM task_activity WHERE id = ? AND task_id = ?').get(Number(req.params.activityId), task.id);
   if (!entry) return res.status(404).json({ error: 'Not found' });
-  if (entry.type !== 'comment') return res.status(400).json({ error: "Only comments can be deleted — system history can't be edited" });
+  // Blockers are human-authored the same as comments (typically via the MCP
+  // connector, see mcp/server.js's log_blocker tool) and get the same
+  // author-only-delete rule; every other type is server-derived system
+  // history and stays immutable regardless of who's asking.
+  if (entry.type !== 'comment' && entry.type !== 'blocker') {
+    return res.status(400).json({ error: "Only comments and blockers can be deleted — system history can't be edited" });
+  }
   if (entry.user_id !== req.user.id) return res.status(403).json({ error: 'You can only delete your own comments' });
   db.prepare('DELETE FROM task_activity WHERE id = ?').run(entry.id);
   res.json({ ok: true });
 });
+
+// Reused by the MCP server (server/src/mcp/server.js) so its tools stay on
+// the exact same task-hydration/activity-logging/done-status logic as these
+// routes, rather than a second, potentially-drifting copy of it.
+export { hydrateTask, logActivity, isDoneStatus, defaultStatusName };
 
 export default router;

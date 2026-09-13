@@ -436,6 +436,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .activity-comment-body p { margin: 0; font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; }
 .activity-comment-delete { margin-left: auto; opacity: 0.5; }
 .activity-comment-delete:hover { opacity: 1; }
+.activity-blocker .activity-comment-body { background: var(--danger-soft); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); }
+.activity-blocker-tag {
+  display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .03em; color: var(--danger); background: var(--panel); border: 1px solid var(--danger); border-radius: 999px; padding: 1px 7px 1px 5px;
+}
 .activity-comment-form { display: flex; gap: 8px; align-items: flex-end; }
 .activity-comment-form textarea { flex: 1; resize: vertical; font-family: inherit; }
 
@@ -575,6 +580,7 @@ button.ghost { background: none; border: 1px solid var(--line); padding: 8px 14p
 .team-add-member select { flex: 1; }
 
 /* ---------- Connectors (personal access tokens, Settings) ---------- */
+.mcp-url-block { margin-bottom: 16px; }
 .token-reveal {
   border: 1px solid var(--accent); background: var(--accent-soft); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px;
 }

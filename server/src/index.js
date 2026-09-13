@@ -21,6 +21,8 @@ import tokenRoutes from './routes/tokens.js';
 import overviewRoutes from './routes/overview.js';
 import attachmentRoutes from './routes/attachments.js';
 import { requireAuth, requireAdmin, requireWorkspace } from './middleware/auth.js';
+import { createMcpServer } from './mcp/server.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import './db/index.js'; // ensure schema is applied on boot
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -75,6 +77,38 @@ app.use('/api/priorities', requireAuth, requireWorkspace, priorityRoutes);
 app.use('/api/sections', requireAuth, requireWorkspace, sectionRoutes);
 app.use('/api/teams', requireAuth, requireWorkspace, teamRoutes);
 app.use('/api/overview', requireAuth, requireWorkspace, overviewRoutes);
+
+// The Claude/MCP connector — deliberately NOT under /api, and deliberately
+// NOT behind requireWorkspace: a tool call carries its own workspace_id
+// argument and checks access itself (see mcp/server.js), the same way
+// project-summary and attachments are self-scoped. Authenticates via the
+// same Authorization: Bearer <PAT> path requireAuth already supports —
+// stateless (a fresh McpServer + transport per request, no session id), the
+// pattern the SDK's own stateless example uses, since each request may
+// belong to a different person and there's nothing here that needs
+// server-initiated push between calls.
+app.post('/mcp', requireAuth, async (req, res) => {
+  try {
+    const server = createMcpServer(req.user);
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    res.on('close', () => { transport.close(); server.close(); });
+    await server.connect(transport);
+    await transport.handleRequest(req, res, req.body);
+  } catch (err) {
+    console.error('MCP request error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ jsonrpc: '2.0', error: { code: -32603, message: 'Internal server error' }, id: null });
+    }
+  }
+});
+// No session to resume or close in stateless mode — same 405 shape the
+// SDK's own stateless example returns for these.
+app.get('/mcp', requireAuth, (req, res) => {
+  res.status(405).json({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed.' }, id: null });
+});
+app.delete('/mcp', requireAuth, (req, res) => {
+  res.status(405).json({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed.' }, id: null });
+});
 
 // Serve the built frontend (web/dist) in production / when present.
 const webDist = path.resolve(__dirname, '../../web/dist');

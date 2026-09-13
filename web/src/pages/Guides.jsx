@@ -173,6 +173,11 @@ export default function Guides({ isOwnerOrAdmin }) {
 
               <h4>Revoking one</h4>
               <p>Any active token can be revoked instantly from the same screen — whatever was using it stops working right away. Do this immediately if a token is ever exposed.</p>
+
+              <h3 style={{ marginTop: 24 }}>Connect Claude to Punchlist</h3>
+              <p>Add Punchlist as a custom connector — Claude Desktop, Claude Code, or claude.ai — using the server URL shown on the Connectors screen and a token as the Bearer credential. Once connected, Claude can see and work <strong>your own</strong> assigned tasks: list them, read one's full detail, change its status, self-assign or unassign, comment, and flag a blocker.</p>
+              <p>It's bound to your role the same as if you were clicking around yourself — it can't reassign a task to someone else, delete a task, or touch anyone else's work. If something looks blocked on another person or looks like a scheduling conflict, it logs a blocker or leaves a comment explaining it rather than acting on their behalf.</p>
+              <p>A blocker shows up on the task's Activity tab with a red "Blocker" tag, same timeline as comments — and like a comment, only whoever logged it can delete it.</p>
             </>
           )}
 

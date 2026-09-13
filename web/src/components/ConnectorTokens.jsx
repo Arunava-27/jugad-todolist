@@ -19,6 +19,8 @@ function formatDate(iso) {
 // connector, act AS you — through the exact same permission checks your
 // normal session already goes through, never anything broader. Purely
 // self-service: this manages only the current account's own tokens.
+const MCP_URL = typeof window !== 'undefined' ? `${window.location.origin}/mcp` : '/mcp';
+
 export default function ConnectorTokens() {
   const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +29,7 @@ export default function ConnectorTokens() {
   const [creating, setCreating] = useState(false);
   const [freshToken, setFreshToken] = useState(null); // { token, name } — shown exactly once
   const [copied, setCopied] = useState(false);
+  const [urlCopied, setUrlCopied] = useState(false);
 
   const refresh = useCallback(() => {
     api.listTokens().then(setTokens).catch(() => {}).finally(() => setLoading(false));
@@ -73,8 +76,26 @@ export default function ConnectorTokens() {
     }
   }
 
+  async function copyUrl() {
+    try {
+      await navigator.clipboard.writeText(MCP_URL);
+      setUrlCopied(true);
+      setTimeout(() => setUrlCopied(false), 2000);
+    } catch {
+      alertDialog('Could not copy automatically — select and copy the URL manually.');
+    }
+  }
+
   return (
     <div>
+      <div className="mcp-url-block">
+        <div className="settings-hint" style={{ margin: '0 0 4px' }}>Server URL — add this as a custom connector in Claude Desktop, Claude Code, or claude.ai, using a token below as the Bearer credential</div>
+        <div className="token-reveal-value">
+          <code>{MCP_URL}</code>
+          <button type="button" onClick={copyUrl}>{urlCopied ? 'Copied' : 'Copy'}</button>
+        </div>
+      </div>
+
       {freshToken && (
         <div className="token-reveal">
           <div className="token-reveal-title">"{freshToken.name}" created</div>

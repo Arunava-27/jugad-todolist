@@ -78,15 +78,18 @@ export default function TaskActivity({ taskId, currentUserId, readOnly }) {
       <div className="task-activity-list">
         {entries.length === 0 && <div className="settings-hint">Nothing here yet.</div>}
         {entries.map((entry) => (
-          entry.type === 'comment' ? (
-            <div className="activity-comment" key={entry.id}>
+          entry.type === 'comment' || entry.type === 'blocker' ? (
+            <div className={`activity-comment ${entry.type === 'blocker' ? 'activity-blocker' : ''}`} key={entry.id}>
               <span className="avatar" style={{ background: colorForPerson(entry.user_name || '?') }}>{initials(entry.user_name || '?')}</span>
               <div className="activity-comment-body">
                 <div className="activity-comment-head">
                   <strong>{entry.user_name || 'Someone'}</strong>
+                  {entry.type === 'blocker' && (
+                    <span className="activity-blocker-tag"><Icon name="bolt" size={11} /> Blocker</span>
+                  )}
                   <span className="settings-hint" style={{ margin: 0 }}>{when(entry.created_at)}</span>
                   {!readOnly && entry.user_id === currentUserId && (
-                    <button className="icon-btn danger-hover activity-comment-delete" title="Delete comment" onClick={() => removeComment(entry.id)}>
+                    <button className="icon-btn danger-hover activity-comment-delete" title={`Delete ${entry.type}`} onClick={() => removeComment(entry.id)}>
                       <Icon name="trash" size={12} />
                     </button>
                   )}
