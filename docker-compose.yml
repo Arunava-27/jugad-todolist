@@ -19,6 +19,15 @@ services:
       - app-data:/data
     expose:
       - "3000"
+    healthcheck:
+      # Readiness, not just liveness — fails if the process is up but can't
+      # actually reach its own database. No curl in node:20-slim, so this
+      # uses Node's built-in http client instead of adding a dependency.
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/ready', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   caddy:
     image: caddy:2-alpine

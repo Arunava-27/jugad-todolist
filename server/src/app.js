@@ -22,12 +22,14 @@ import secretRoutes from './routes/secrets.js';
 import tokenRoutes from './routes/tokens.js';
 import overviewRoutes from './routes/overview.js';
 import attachmentRoutes from './routes/attachments.js';
+import clientErrorRoutes from './routes/clientErrors.js';
 import { requireAuth, requireAdmin, requireWorkspace } from './middleware/auth.js';
+import { requestLogger } from './middleware/requestLogger.js';
 import { createMcpServer } from './mcp/server.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { APP_URL } from './lib/appUrl.js';
 import { validateProductionConfig } from './lib/configCheck.js';
-import './db/index.js'; // ensure schema is applied on boot
+import db from './db/index.js'; // also ensures schema is applied on boot
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isProd = process.env.NODE_ENV === 'production';
@@ -41,6 +43,7 @@ const { corsOrigin } = validateProductionConfig();
 export const app = express();
 app.set('trust proxy', 1); // behind Caddy in production
 
+app.use(requestLogger); // first, so req.id/X-Request-Id exist for every response, including 404s
 app.use(express.json({ limit: '2mb' }));
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(cookieSession({
@@ -52,7 +55,22 @@ app.use(cookieSession({
   httpOnly: true,
 }));
 
+// Liveness — the process is up and answering HTTP at all, no dependencies checked.
 app.get('/api/health', (req, res) => res.json({ ok: true }));
+// Readiness — the process can actually serve real requests (the database is
+// reachable). A container orchestrator/uptime check should use this one to
+// decide whether to route traffic here, not /api/health.
+app.get('/api/ready', (req, res) => {
+  try {
+    db.prepare('SELECT 1').get();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(JSON.stringify({ ts: new Date().toISOString(), reqId: req.id, kind: 'readiness_check_failed', message: err.message }));
+    res.status(503).json({ ok: false, error: 'Database unreachable' });
+  }
+});
+
+app.use('/api/client-errors', clientErrorRoutes);
 
 // The OAuth authorization server (Phase 9) — deliberately mounted at the
 // root, unauthenticated: these routes (discovery docs, Dynamic Client
@@ -157,7 +175,11 @@ if (fs.existsSync(webDist)) {
 // arity, so `next` has to stay even though this handler never calls it.
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
-  console.error(err);
+  console.error(JSON.stringify({
+    ts: new Date().toISOString(), reqId: req.id, kind: 'unhandled_route_error',
+    method: req.method, path: req.originalUrl, message: err.message, stack: err.stack,
+    userId: req.user?.id ?? null,
+  }));
   res.status(500).json({ error: 'Internal server error' });
 });
 

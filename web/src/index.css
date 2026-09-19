@@ -348,6 +348,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .dialog-actions button:not(.ghost) { background: var(--accent); color: var(--accent-ink); border: none; padding: 8px 16px; border-radius: var(--radius-sm); font-weight: 600; }
 .dialog-actions button.danger { background: var(--danger); color: #fff; border: none; }
 
+.error-boundary { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; height: 100vh; padding: 24px; text-align: center; background: var(--paper); color: var(--ink); }
+.error-boundary h1 { font-size: 20px; margin: 0; }
+.error-boundary p { margin: 0; color: var(--ink-soft); font-size: 14px; max-width: 360px; }
+.error-boundary button { margin-top: 8px; background: var(--accent); color: var(--accent-ink); border: none; padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; }
+
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .modal-title-input { width: 100%; font-size: 18px; font-weight: 600; border: none; padding: 6px 0; margin-bottom: 4px; background: none; }
 .modal-title-input:focus { outline: none; }
