@@ -7,7 +7,10 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "import-notion": "node ../scripts/import-notion.js"
+    "import-notion": "node ../scripts/import-notion.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
@@ -20,5 +23,12 @@
     "express-rate-limit": "^8.7.0",
     "multer": "^2.0.0",
     "zod": "^4.6.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "eslint": "^9.13.0",
+    "globals": "^15.11.0",
+    "supertest": "^7.0.0",
+    "vitest": "^2.1.4"
   }
 }

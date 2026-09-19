@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import db from '../db/index.js';
-import { ROLES, atLeast } from '../lib/permissions.js';
+import { ROLES } from '../lib/permissions.js';
 
 const router = Router();
 
@@ -158,7 +158,7 @@ router.patch('/users/:id', (req, res) => {
     values.push(id);
     db.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`).run(...values);
   }
-  const { password_hash, ...safe } = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+  const { password_hash: _password_hash, ...safe } = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
   res.json(safe);
 });
 

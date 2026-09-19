@@ -1,0 +1,48 @@
+name: CI
+
+# Runs on every pull request and every push to main. Deploy.yml (build the
+# frontend, build+push the image, roll the droplet) stays a separate
+# workflow, gated on push-to-main only — this one is the pull-request gate:
+# it must pass before a change is trustworthy enough to merge or ship.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    name: Lint, test, and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies (server + web workspaces)
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build frontend
+        run: npm run build:web
+
+      - name: Dependency audit (informational — does not fail the build yet)
+        run: npm audit --audit-level=critical || true
+
+  secret-scan:
+    name: Secret scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
