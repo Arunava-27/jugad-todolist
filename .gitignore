@@ -10,3 +10,4 @@ data/secrets/
 .env
 *.log
 backups/
+brag-output/
