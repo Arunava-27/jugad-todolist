@@ -26,16 +26,23 @@ import { requireAuth, requireAdmin, requireWorkspace } from './middleware/auth.j
 import { createMcpServer } from './mcp/server.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { APP_URL } from './lib/appUrl.js';
+import { validateProductionConfig } from './lib/configCheck.js';
 import './db/index.js'; // ensure schema is applied on boot
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isProd = process.env.NODE_ENV === 'production';
 
+// Exits the process on a fatal misconfiguration (missing/placeholder/weak
+// SESSION_SECRET in production, a set-but-invalid SECRET_MASTER_KEY) before
+// anything else runs — see lib/configCheck.js. Also resolves the CORS
+// origin to use below.
+const { corsOrigin } = validateProductionConfig();
+
 export const app = express();
 app.set('trust proxy', 1); // behind Caddy in production
 
 app.use(express.json({ limit: '2mb' }));
-app.use(cors({ origin: process.env.CORS_ORIGIN || true, credentials: true }));
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(cookieSession({
   name: 'jugad_session',
   secret: process.env.SESSION_SECRET || 'dev-secret-change-me',

@@ -53,7 +53,10 @@ Edit `.env` and fill in:
 - `ADMIN_PASSWORD_HASH` = output of `node scripts/hash-password.js "your-password"` (run this once
   locally where Node is installed, or `docker compose run --rm app node scripts/hash-password.js "your-password"`
   after step 6 below)
-- `SESSION_SECRET` = any long random string
+- `SESSION_SECRET` = any long random string (32+ characters) — the server refuses to boot in
+  production without a real one set here, rather than silently falling back to an insecure default
+- `CORS_ORIGIN` = optional, leave blank. Defaults to `https://$DOMAIN`, which is correct for this
+  deployment (see `.env.example`)
 - `RESEND_API_KEY` / `EMAIL_FROM` = for emailing workspace invites (see below). Optional — invites
   still work without it, they just aren't emailed (the link is logged server-side instead).
 
