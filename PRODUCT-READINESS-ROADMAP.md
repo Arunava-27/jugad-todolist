@@ -181,6 +181,22 @@ personal access tokens from Punchlist users.
 
 ## 6. Collaboration and workflow features
 
+### Direct messages and channels
+
+Implement the messaging system described in [MESSAGING-PLAN.md](MESSAGING-PLAN.md): 1:1 direct
+messages between workspace members, a workspace-wide general channel, and a channel per project team —
+separate from task comments, which stay task-scoped.
+
+Sequence:
+
+1. direct message threads, polling-based delivery, unread state;
+2. team/workspace channels, built on the same message/read-state shape, including the backfill
+   migration for workspaces and teams that predate the feature.
+
+This is the one place in the whole permission model where viewer role is deliberately allowed to write
+(post a message) — flag it for explicit sign-off before release, same as any other deliberate exception
+to the read-only-viewer default.
+
 ### Task dependencies and blockers
 
 Add task relationships:
@@ -288,6 +304,7 @@ Potential next integrations:
 
 - Password reset, email verification, session management, and optional two-factor authentication.
 - Organization audit log.
+- Direct messages, then channels (see MESSAGING-PLAN.md).
 - Notifications and mentions.
 - Task dependencies and blocker tracking.
 
@@ -315,6 +332,8 @@ Punchlist is ready for broader industry use when:
 - users can recover accounts and manage active sessions safely;
 - GitHub work is visible in the appropriate Punchlist project without violating organization,
   workspace, or stakeholder permissions;
+- workspace members can message each other directly and by team/general channel, with viewer role's
+  one deliberate write exception clearly documented rather than accidental;
 - collaboration workflows support blockers, notifications, recurring work, templates, and
   discoverable reporting;
 - the system has explicit limits and operational guidance for its SQLite single-instance deployment.
