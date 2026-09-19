@@ -136,15 +136,72 @@ cd /opt/jugad-todolist
 docker compose up -d --build
 ```
 
+## SQLite operating model
+
+Punchlist runs on **SQLite in WAL mode, as a single process against a single database file** — this is
+the right choice for a self-hosted, single-organization-scale deployment (see
+`PRODUCT-READINESS-ROADMAP.md`'s "Future PostgreSQL path" for what would actually justify moving off
+it), but it comes with real constraints worth being explicit about rather than discovering by accident:
+
+- **Single writer, single instance.** Only ever run one `app` container against one `app-data` volume
+  at a time. Don't scale `app` to multiple replicas, and don't point two separate deployments (e.g. a
+  staging environment) at the same volume — SQLite's WAL mode handles concurrent reads fine but assumes
+  one writer.
+- **The database is exactly one file** (`/data/app.db`, plus its `-wal`/`-shm` companions while the
+  server is running) — there's no separate database server to back up, restart, or reason about
+  independently of the app container itself.
+- **Migrations run automatically on boot** (`server/src/db/index.js`), guarded to be safe on both a
+  fresh install and an upgrade — see that file's `hasColumn`/`hasTable` pattern if you're ever adding a
+  new one. Always test a schema change against a real checkpointed copy of the production database
+  before deploying it (see Backups below for how to get one) — this project's own history has a couple
+  of near-misses (a stale WAL snapshot, a migration that would've dropped still-in-use data) that this
+  step would have — and did, once caught early — prevent.
+
 ## Backups
 
-The SQLite file and uploaded task images both live in the `app-data` Docker volume, at `/data/app.db`
-and `/data/uploads/`. To copy them to your own machine:
+**Location.** Punchlist is a single SQLite instance (see "SQLite operating model" below) — the database
+and uploaded/secret files all live in the `app-data` Docker volume, at `/data/app.db`, `/data/uploads/`,
+and `/data/secrets/`. `scripts/backup-db.sh` copies all three out to `/opt/jugad-todolist/backups/` on
+the droplet's own filesystem (outside the Docker volume, so a bad volume/container doesn't take the
+backups down with it) — run it from the repo root:
 
 ```bash
-docker compose cp app:/data/app.db ./app-backup-$(date +%F).db
-docker compose cp app:/data/uploads ./uploads-backup-$(date +%F)
+./scripts/backup-db.sh
 ```
 
-Run that from your laptop over SSH (or set up a cron job on the droplet) as often as you like — there's
-no size or frequency limit beyond the droplet's own disk.
+It checkpoints the WAL into the main file first (a plain `docker compose cp` of `app.db` alone can miss
+recent writes still sitting in SQLite's separate `-wal` file — this actually happened once during a
+manual backup earlier in this project's history), then copies the database and files, then prunes old
+backups (14 days of database snapshots, 3 days of the heavier upload/secret snapshots), and warns if
+disk usage is climbing.
+
+**Never back up `.env` alongside these files.** An encrypted secrets backup only stays encrypted as
+long as `SECRET_MASTER_KEY` travels separately from it — don't bundle a copy of `.env` into the same
+place as `backups/`.
+
+**Scheduling.** Add a daily cron job on the droplet:
+
+```bash
+crontab -e
+# add:
+0 3 * * * /opt/jugad-todolist/scripts/backup-db.sh >> /opt/jugad-todolist/backups/backup.log 2>&1
+```
+
+**Retention.** 14 days of database snapshots, 3 days of upload/secret snapshots (see the script) — both
+adjustable by editing the `-mtime` values in `scripts/backup-db.sh` if you want to keep more.
+
+**Restoring.** `scripts/restore-db.sh <path-to-backup.db>` stops the app, copies the backup file into
+the running container's `/data/app.db`, and restarts it. This is destructive — it replaces the live
+database — so only run it against production during real disaster recovery. To test a restore (or to
+recover a single record without touching the live database), do it against a disposable copy instead:
+run a second, throwaway `docker compose` stack (a different project name and volume) pointed at a copy
+of the backup file, or run the server directly against it locally with `DATA_DIR=/path/to/scratch-dir`
+after copying the backup in as `app.db`. This exact restore path (checkpoint → copy → boot a fresh
+instance against the copy → confirm the data round-trips) was tested end-to-end in a disposable local
+environment before this backup/restore setup was relied on for anything real.
+
+**Monitoring.** `backup-db.sh` logs its own success/failure and warns if disk usage crosses 85% — check
+`backups/backup.log` (or wire cron's own mail/failure notification up if you want to be alerted actively
+rather than checking manually). There's no automated alerting on a *missed* backup yet — if that matters,
+the simplest addition is a cron-health check service (e.g. a free healthchecks.io-style "ping on success,
+alert if no ping within N hours" endpoint) called from the end of the script.
