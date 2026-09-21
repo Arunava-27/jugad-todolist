@@ -293,12 +293,12 @@ Potential next integrations:
 
 ## Suggested delivery sequence
 
-### Milestone A: reliable foundation
+### Milestone A: reliable foundation — Complete
 
-- Tests, linting, formatting, CI, and branch protections.
-- Production configuration validation.
-- Structured logs, health checks, and error tracking.
-- Database backup/restore testing.
+- [x] Tests, linting, formatting, CI, and branch protections.
+- [x] Production configuration validation.
+- [x] Structured logs, health checks, and error tracking.
+- [x] Database backup/restore testing.
 
 ### Milestone B: secure collaboration
 
