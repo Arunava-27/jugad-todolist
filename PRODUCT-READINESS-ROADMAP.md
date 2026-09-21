@@ -99,7 +99,8 @@ Add:
 
 ### Organization audit log
 
-Extend the existing secret-access audit pattern to organization-wide events:
+See `AUDIT-LOG-PLAN.md` for the implementation plan. Extend the existing secret-access audit pattern to
+organization-wide events:
 
 - organization settings changes;
 - user creation, deactivation, deletion, and role changes;
