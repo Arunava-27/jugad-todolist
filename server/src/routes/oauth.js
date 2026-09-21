@@ -7,6 +7,7 @@ import db from '../db/index.js';
 import { APP_URL } from '../lib/appUrl.js';
 import { verifyCredentials } from '../lib/credentials.js';
 import { mintPersonalAccessToken, TOKEN_PREFIX_LEN } from '../lib/personalAccessTokens.js';
+import { createSession, resolveSession } from '../lib/sessions.js';
 
 // A minimal OAuth 2.1-style authorization server — Dynamic Client
 // Registration (RFC 7591) + Authorization Code + PKCE (RFC 7636) only, no
@@ -243,10 +244,7 @@ function validateClientAndRedirect(params) {
 }
 
 function getSessionUser(req) {
-  const userId = req.session?.userId;
-  if (!userId) return null;
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-  return user && user.is_active ? user : null;
+  return resolveSession(req.session?.sid)?.user || null;
 }
 
 // Once client_id/redirect_uri are confirmed valid, later problems (bad
@@ -295,11 +293,16 @@ router.post('/oauth/authorize', oauthLimiter, (req, res) => {
         params: withClientName, error: 'Invalid email or password', loginEmail: req.body?.email,
       })));
     }
-    // Signing in here also signs the browser into Punchlist itself (the
-    // same req.session.userId the normal /api/auth/login sets) — a person
-    // approving a connector while already logged out ends up logged in
-    // afterward too, which is the expected behavior for this kind of page.
-    req.session.userId = user.id;
+    // Signing in here also signs the browser into Punchlist itself (creates
+    // the same kind of server-side session /api/auth/login does — see
+    // lib/sessions.js) — a person approving a connector while already
+    // logged out ends up logged in afterward too, which is the expected
+    // behavior for this kind of page. Deliberately does not gate on 2FA even
+    // for an account that has it enabled — this consent-page login form is a
+    // secondary path (the primary web app login already does), and adding
+    // that flow here is tracked separately rather than folded into this change.
+    const { raw } = createSession({ userId: user.id, userAgent: req.header('User-Agent'), ip: req.ip });
+    req.session.sid = raw;
     return res.send(renderPage('Allow access', consentPageHtml({ params: withClientName, client, user })));
   }
 

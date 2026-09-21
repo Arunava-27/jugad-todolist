@@ -36,6 +36,10 @@ CREATE TABLE IF NOT EXISTS users (
     -- production row still carried a real value in it — a fresh install never has the column at all.
   is_active INTEGER NOT NULL DEFAULT 1,
   weekly_capacity_hours INTEGER, -- for the Dashboard's capacity view; NULL means "use the default" (see overview.js)
+  email_verified_at TEXT, -- NULL until they click the link from lib/email.js's sendVerificationEmail
+  totp_secret TEXT, -- base32 TOTP secret, AES-256-GCM-encrypted via lib/secretCrypto.js; set once 2FA setup begins
+  totp_enabled_at TEXT, -- NULL until a setup code is confirmed — this (not totp_secret) gates whether login requires a code
+  totp_recovery_codes TEXT, -- JSON array of {hash, used_at}; bcrypt-hashed one-time codes, generated when 2FA is enabled
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
@@ -120,6 +124,45 @@ CREATE TABLE IF NOT EXISTS oauth_refresh_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_oauth_refresh_user ON oauth_refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_oauth_refresh_prefix ON oauth_refresh_tokens(token_prefix);
+
+-- A server-side record of one signed-in browser/device. The session cookie
+-- (see app.js's cookie-session config) carries only an opaque random token
+-- (`sid`) — this table is what makes a session listable/revocable ("Settings
+-- > Security > Sessions", remote sign-out) instead of the old stateless
+-- cookie-session payload of `{ userId }` with no server-side trace at all.
+-- token_hash is SHA-256 (not bcrypt): unlike a password or PAT, this token is
+-- high-entropy and looked up on every single authenticated request, so a fast
+-- deterministic hash is the right tool — bcrypt's deliberate slowness is for
+-- low-entropy secrets a human typed, not a 32-byte random value.
+CREATE TABLE IF NOT EXISTS sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  user_agent TEXT,
+  ip TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  last_seen_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  expires_at TEXT NOT NULL,
+  revoked_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+
+-- A single-use, short-lived token for "prove control of this email address"
+-- flows — email verification and password reset share this one table since
+-- both are the same shape (a token, an expiry, one use). Resolved by token
+-- hash (SHA-256, same reasoning as `sessions.token_hash` — these are looked
+-- up by an anonymous visitor clicking a link, not typed by hand, so no need
+-- for bcrypt's slowness or a prefix column).
+CREATE TABLE IF NOT EXISTS auth_tokens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  purpose TEXT NOT NULL, -- 'verify_email' | 'password_reset'
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_auth_tokens_user ON auth_tokens(user_id);
 
 CREATE TABLE IF NOT EXISTS workspaces (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

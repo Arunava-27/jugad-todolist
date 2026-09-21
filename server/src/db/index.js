@@ -216,6 +216,20 @@ if (!hasColumn('workspaces', 'organization_id')) {
   db.exec('ALTER TABLE workspaces ADD COLUMN organization_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE');
 }
 db.exec('CREATE INDEX IF NOT EXISTS idx_users_organization ON users(organization_id)');
+
+// --- account security: email verification, password reset, sessions, 2FA ---
+if (!hasColumn('users', 'email_verified_at')) {
+  db.exec('ALTER TABLE users ADD COLUMN email_verified_at TEXT');
+}
+if (!hasColumn('users', 'totp_secret')) {
+  db.exec('ALTER TABLE users ADD COLUMN totp_secret TEXT');
+}
+if (!hasColumn('users', 'totp_enabled_at')) {
+  db.exec('ALTER TABLE users ADD COLUMN totp_enabled_at TEXT');
+}
+if (!hasColumn('users', 'totp_recovery_codes')) {
+  db.exec('ALTER TABLE users ADD COLUMN totp_recovery_codes TEXT');
+}
 db.exec('CREATE INDEX IF NOT EXISTS idx_workspaces_organization ON workspaces(organization_id)');
 
 // One-time backfill for a database that predates organizations: everything

@@ -113,7 +113,21 @@ export const api = {
   register: (email, name, password, { inviteToken, organizationName } = {}) =>
     request('/auth/register', { method: 'POST', body: JSON.stringify({ email, name, password, inviteToken, organizationName }) }),
   login: (email, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  login2fa: (pendingToken, code) => request('/auth/2fa/login', { method: 'POST', body: JSON.stringify({ pendingToken, code }) }),
   logout: () => request('/auth/logout', { method: 'POST' }),
+
+  verifyEmail: (token) => request(`/auth/verify-email/${token}`),
+  resendVerification: () => request('/auth/verify-email/resend', { method: 'POST' }),
+  requestPasswordReset: (email) => request('/auth/password-reset/request', { method: 'POST', body: JSON.stringify({ email }) }),
+  resetPassword: (token, newPassword) => request(`/auth/password-reset/${token}`, { method: 'POST', body: JSON.stringify({ newPassword }) }),
+
+  listSessions: () => request('/auth/sessions'),
+  revokeSession: (id) => request(`/auth/sessions/${id}`, { method: 'DELETE' }),
+  revokeOtherSessions: () => request('/auth/sessions/revoke-others', { method: 'POST' }),
+
+  setup2fa: () => request('/auth/2fa/setup', { method: 'POST' }),
+  enable2fa: (code) => request('/auth/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) }),
+  disable2fa: (password) => request('/auth/2fa/disable', { method: 'POST', body: JSON.stringify({ password }) }),
 
   getInvite: (token) => request(`/invites/${token}`),
   acceptInvite: (token) => request(`/invites/${token}/accept`, { method: 'POST' }),

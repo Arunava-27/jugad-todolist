@@ -52,6 +52,9 @@ export default function Register({ onRegistered, onSwitchToLogin, onBack, invite
         )}
         {error && <div className="login-error">{error}</div>}
         <button type="submit" disabled={loading}>{loading ? 'Creating account…' : inviteInfo ? 'Create account' : 'Create organization'}</button>
+        <p className="settings-hint" style={{ textAlign: 'center', margin: '4px 0 0' }}>
+          We'll email you a link to verify your address after this.
+        </p>
         {!inviteInfo && <button type="button" className="link-btn" onClick={onSwitchToLogin}>Already have an account? Sign in</button>}
       </form>
     </div>

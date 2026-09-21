@@ -300,13 +300,13 @@ Potential next integrations:
 - [x] Structured logs, health checks, and error tracking.
 - [x] Database backup/restore testing.
 
-### Milestone B: secure collaboration
+### Milestone B: secure collaboration — In progress
 
-- Password reset, email verification, session management, and optional two-factor authentication.
-- Organization audit log.
-- Direct messages, then channels (see MESSAGING-PLAN.md).
-- Notifications and mentions.
-- Task dependencies and blocker tracking.
+- [x] Password reset, email verification, session management, and optional two-factor authentication.
+- [ ] Organization audit log.
+- [ ] Direct messages, then channels (see MESSAGING-PLAN.md).
+- [ ] Notifications and mentions.
+- [ ] Task dependencies and blocker tracking.
 
 ### Milestone C: connected engineering workflow
 

@@ -3,13 +3,14 @@ import { api } from '../lib/api.js';
 import SettingsList from '../components/SettingsList.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
 import ConnectorTokens from '../components/ConnectorTokens.jsx';
+import SecuritySettings from '../components/SecuritySettings.jsx';
 import { ACCENT_PRESETS, getTheme, getAccent, setTheme, setAccent } from '../lib/theme.js';
 import { PROJECT_STAGES } from '../lib/projectStages.js';
 import { confirmDialog } from '../lib/dialogs.js';
 
-const TABS = ['Appearance', 'Workflow', 'Labels', 'Members', 'Projects', 'Connectors'];
+const TABS = ['Appearance', 'Workflow', 'Labels', 'Members', 'Projects', 'Connectors', 'Security'];
 
-export default function Settings({ statuses, priorities, labels, projects, workspaceId, currentUserId, canManage, onChange }) {
+export default function Settings({ statuses, priorities, labels, projects, workspaceId, currentUserId, user, onUserChanged, canManage, onChange }) {
   const [tab, setTab] = useState('Appearance');
   const [theme, setThemeState] = useState(getTheme());
   const [accent, setAccentState] = useState(getAccent());
@@ -189,6 +190,10 @@ export default function Settings({ statuses, priorities, labels, projects, works
               <p className="settings-hint">Personal access tokens — let a script, or your own Claude, act as you.</p>
               <ConnectorTokens />
             </>
+          )}
+
+          {tab === 'Security' && (
+            <SecuritySettings user={user} onUserChanged={onUserChanged} />
           )}
         </div>
       </div>

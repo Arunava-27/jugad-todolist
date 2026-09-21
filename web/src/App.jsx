@@ -3,6 +3,7 @@ import { api, setActiveWorkspaceId } from './lib/api.js';
 import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
 import AcceptInvite from './pages/AcceptInvite.jsx';
 import CreateWorkspace from './pages/CreateWorkspace.jsx';
 import StakeholderView from './pages/StakeholderView.jsx';
@@ -53,12 +54,45 @@ export default function App() {
   const [inviteResolved, setInviteResolved] = useState(false);
   const [accepting, setAccepting] = useState(false);
 
+  const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get('reset'));
+  const [verifyToken] = useState(() => new URLSearchParams(window.location.search).get('verify'));
+  const [verifyBanner, setVerifyBanner] = useState('');
+  // Guards against React.StrictMode's dev-only double-invoke of effects on
+  // mount — without this, the effect below would call verifyEmail twice,
+  // and since the token is single-use, the second call's 410 would
+  // overwrite the first call's real success with a false "invalid" banner.
+  const verifyAttempted = useRef(false);
+
   useEffect(() => {
     api.me()
       .then(({ user, workspaces, stakeholderProjects }) => applyAuthResult({ user, workspaces, stakeholderProjects }))
       .catch(() => setUser(null))
       .finally(() => setAuthChecked(true));
   }, []);
+
+  useEffect(() => {
+    if (!verifyToken || verifyAttempted.current) return;
+    verifyAttempted.current = true;
+    api.verifyEmail(verifyToken)
+      .then(() => { setVerifyBanner('Email verified.'); refreshUser(); })
+      .catch((err) => setVerifyBanner(err.message || 'This verification link is invalid or has expired.'))
+      .finally(() => {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('verify');
+        window.history.replaceState({}, '', url);
+      });
+    // Only ever runs once per page load — verifyToken itself never changes
+    // after the initial useState above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verifyToken]);
+
+  // Refreshes just the signed-in user's own record (email verification,
+  // 2FA status) without touching workspaces/view the way applyAuthResult
+  // does — used after actions in Settings > Security, and after the
+  // ?verify= link above, where a full re-bootstrap would be overkill.
+  function refreshUser() {
+    api.me().then(({ user }) => setUser(user)).catch(() => {});
+  }
 
   useEffect(() => {
     if (!inviteToken) return;
@@ -181,6 +215,23 @@ export default function App() {
   }, [loadSections]);
 
   if (!authChecked) return <div className="boot-screen">Loading…</div>;
+
+  function clearResetToken() {
+    setResetToken(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('reset');
+    window.history.replaceState({}, '', url);
+  }
+
+  if (resetToken) {
+    return (
+      <ResetPassword
+        token={resetToken}
+        onDone={clearResetToken}
+        onBack={clearResetToken}
+      />
+    );
+  }
 
   if (inviteToken && !inviteResolved) {
     if (user) {
@@ -348,6 +399,9 @@ export default function App() {
       />
 
       <main className="main-panel">
+        {verifyBanner && (
+          <div className="verify-banner" onClick={() => setVerifyBanner('')}>{verifyBanner}</div>
+        )}
         <header className="main-header">
           <button className="hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Icon name="menu" size={20} /></button>
           <h2>{viewMeta.icon && <Icon name={viewMeta.icon} size={18} style={{ marginRight: 9, verticalAlign: -3 }} />}{viewMeta.label}</h2>
@@ -393,6 +447,8 @@ export default function App() {
             projects={projects}
             workspaceId={activeWorkspaceId}
             currentUserId={user.id}
+            user={user}
+            onUserChanged={refreshUser}
             canManage={canManage}
             onChange={refreshLookups}
           />

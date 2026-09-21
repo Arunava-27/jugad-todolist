@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import db from '../db/index.js';
 import { roleFor, atLeast } from '../lib/permissions.js';
+import { resolveSession } from '../lib/sessions.js';
 
 // How many leading characters of a raw token are stored in the clear as
 // token_prefix, for display ("pat_ab12••••") and as a lookup index — this
@@ -45,14 +46,15 @@ export function requireAuth(req, res, next) {
   const bearer = req.header('Authorization')?.match(/^Bearer (.+)$/)?.[1];
   if (bearer) return authenticateViaToken(bearer, req, res, next);
 
-  const userId = req.session?.userId;
-  if (!userId) return res.status(401).json({ error: 'Not authenticated' });
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-  if (!user || !user.is_active) {
+  const sid = req.session?.sid;
+  if (!sid) return res.status(401).json({ error: 'Not authenticated' });
+  const resolved = resolveSession(sid);
+  if (!resolved) {
     req.session = null;
     return res.status(401).json({ error: 'Not authenticated' });
   }
-  req.user = user;
+  req.user = resolved.user;
+  req.sessionRow = resolved.session;
   next();
 }
 

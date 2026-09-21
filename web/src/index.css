@@ -587,6 +587,10 @@ button.ghost { background: none; border: 1px solid var(--line); padding: 8px 14p
 /* ---------- Connectors (personal access tokens, Settings) ---------- */
 .settings-subheading { font-size: 12px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .03em; margin: 18px 0 8px; }
 .settings-subheading:first-child { margin-top: 0; }
+.verify-banner {
+  background: var(--accent-soft); color: var(--ink); border-bottom: 1px solid var(--accent); padding: 8px 16px;
+  font-size: 13px; text-align: center; cursor: pointer;
+}
 .mcp-url-block { margin-bottom: 16px; }
 .token-reveal {
   border: 1px solid var(--accent); background: var(--accent-soft); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px;
